@@ -5,6 +5,7 @@ namespace Encase\Matching\Tests;
 use Encase\Functional\Type;
 use const Encase\Matching\Support\_;
 use function Encase\Matching\Support\_;
+use function Encase\Matching\Support\any;
 use function Encase\Matching\Support\match;
 use function Encase\Matching\Support\pattern;
 
@@ -34,14 +35,14 @@ class MatcherTest extends TestCase
 	public function testMatchType($value, $expect)
 	{
 		$pattern = pattern()
-			(Type::array())     ->v('array')
-			(Type::bool())      ->v('bool')
-			(Type::float())     ->v('float')
-			(Type::int())       ->v('int')
-			(Type::null())      ->v('null')
-			(Type::object(MatcherTest::class)) ->v('MatcherTest')
-			(Type::object())    ->v('object')
-			(Type::string())    ->v('string')
+			(Type::array())     ['array']
+			(Type::bool())      ['bool']
+			(Type::float())     ['float']
+			(Type::int())       ['int']
+			(Type::null())      ['null']
+			(Type::object(MatcherTest::class)) ['MatcherTest']
+			(Type::object())    ['object']
+			(Type::string())    ['string']
 		;
 		$result = $pattern->match($value);
 		$this->assertSame($expect, $result);
@@ -55,9 +56,9 @@ class MatcherTest extends TestCase
 			['Inception', 'Matrix', 'One Flew Over the Arrays Nest'],
 		];
 		$result = pattern()
-			('name', 'age', 'films')->f(
+			('name', 'age', 'films') [
 				fn($name, $age, $films) => "Name: $name, Age: $age, Films: ".\implode(', ', $films)
-			)
+			]
 		->match($array);
 		$this->assertSame(
 			'Name: Frank Drebin, Age: 42, Films: Inception, Matrix, One Flew Over the Arrays Nest',
@@ -88,7 +89,7 @@ class MatcherTest extends TestCase
 				->if(fn($a, $b, $c) => $c !== ($a + $b))
 				->else->continue('b,c,t')
 				->ret('c')
-			()->v(null)
+			() [null]
 		;
 		$this->assertSame(
 			null,
@@ -104,18 +105,16 @@ class MatcherTest extends TestCase
 	{
 		$same = fn($h, $t) => $h === $t;
 		$isPalindrome = pattern()
-			// head and tail match, recurse
-			('h', '*m', 't') ->if($same) ->continue('m')
-			// end of even-length palindrome:
-			('h', 't')       ->if($same) ->v('even')
+			// if head and tail match, recurse, else return false
+			('h', '*m', 't')-> if($same)-> continue('m')-> else [false]
 			// end of odd-length palindrome:
-			(_) ->v('odd')
+			(_) ['odd']
 			// default case - not a palindrome:
-			()  ->v(false)
+			()  ['even']
 		;
 
 		$this->assertSame('even', $isPalindrome('aabbaa'));
-		$this->assertSame('odd', $isPalindrome('aabaa'));
+		$this->assertSame('odd', $isPalindrome(\explode('', 'aabaa')));
 		$this->assertFalse($isPalindrome('aabcaa'));
 		$this->assertTrue([1, 2, 2, 1]);
 		$this->assertTrue([1, 2, 3, 2, 1]);
@@ -125,32 +124,20 @@ class MatcherTest extends TestCase
 	public function testMatchStringAgainstStringCases()
 	{
 		$result = pattern()
-			['a'] ->v(1)
-			['b'] ->v(2)
-			['c'] ->v(3)
-			['d'] ->v(4)
+			['a'] [1]
+			['b'] [2]
+			['c'] [3]
+			['d'] [4]
 		->match('c');
-		$this->assertSame(3, $result);
-	}
-
-	public function testMatchMultipleStringsAgainstStringCases()
-	{
-		$result = pattern()
-			['x'] ['y'] ['z'] ->v(1)
-			['1'] ['2'] ['3'] ->v(2)
-			['a'] ['b'] ['c'] ->v(3)
-			['f'] ['o'] ['o'] ->v(4)
-			()                ->f(function () { return 'default'; })
-		->match('a', 'b', 'c');
 		$this->assertSame(3, $result);
 	}
 
 	public function testMatchCasesFallToDefault()
 	{
 		$result = pattern()
-			['a'] ->v(1)
-			['b'] ->v(2)
-			()    ->v(42)
+			['a'] [1]
+			['b'] [2]
+			()    [42]
 		->match('c');
 		$this->assertSame(42, $result);
 	}
@@ -158,22 +145,23 @@ class MatcherTest extends TestCase
 	public function matchAny()
 	{
 		$pattern = pattern()
-			(all(1, 2, 3))  ->v('a')
-			()              ->v('b');
-		$this->assertSame('a', $pattern->match(1));
-		$this->assertSame('a', $pattern->match(2));
-		$this->assertSame('a', $pattern->match(3));
-		$this->assertSame('b', $pattern->match(4));
+			(any(1, 2, 3))  ['a']
+			()              ['b']
+		->get();
+		$this->assertSame('a', $pattern(1));
+		$this->assertSame('a', $pattern(2));
+		$this->assertSame('a', $pattern(3));
+		$this->assertSame('b', $pattern(4));
 	}
 
 	public function testMatchToDetermineEmptyType()
 	{
 		$fn = function () {};
 		$pattern = pattern()
-			[[]]            ->v('empty array')
-			['']            ->v('empty string')
-			[(object)[]]    ->v('empty object')
-			->get();
+			[[]]            ['empty array']
+			['']            ['empty string']
+			[(object)[]]    ['empty object']
+		->get();
 		$this->assertSame('empty array', $pattern([]));
 		$this->assertSame('empty string', $pattern(''));
 		$this->assertSame('empty object', $pattern((object)[]));
@@ -182,7 +170,7 @@ class MatcherTest extends TestCase
 	public function testMatchArrayExact()
 	{
 		$result = pattern()
-			[[1, 2]] ->v('ok')
+			[[1, 2]] ['ok']
 		->match([1, 2]);
 		$this->assertSame('ok', $result);
 	}
@@ -190,7 +178,7 @@ class MatcherTest extends TestCase
 	public function testMatchEmptyArray()
 	{
 		$result = match([], pattern()
-			[[]] ->v('ok')
+			[[]] ['ok']
 		);
 		$this->assertSame('ok', $result);
 	}
@@ -198,8 +186,8 @@ class MatcherTest extends TestCase
 	public function testMatchIndexedArrayWithWildcard()
 	{
 		$result = pattern()
-			([_('n')->a, 4]) ->f(fn($a) => "ok: $a")
-			()               ->v(false)
+			(['a', 4]) [fn($a) => "ok: $a"]
+			()         [false]
 		->match([2, 4]);
 		$this->assertSame('ok: 2', $result);
 	}
@@ -209,12 +197,13 @@ class MatcherTest extends TestCase
 		$checkIpDigit = fn($digit) => $digit >= 0 && $digit <= 255;
 		$ipValidatorPattern = pattern()
 			('/\A(?P<ip1>\d{1,3})\.(?P<ip2>\d{1,3})\.(?P<ip3>\d{1,3})\.(?P<ip4>\d{1,3})\z/')
-			    ->if(fn($ip1, $ip2, $ip3, $ip4) => $checkIpDigit($ip1) &&
-			                                       $checkIpDigit($ip2) &&
-			                                       $checkIpDigit($ip3) &&
-			                                       $checkIpDigit($ip4))
-			    ->v(true)
-			()  ->v(false)
+				->if(fn($ip1, $ip2, $ip3, $ip4) =>
+					$checkIpDigit($ip1) &&
+					$checkIpDigit($ip2) &&
+					$checkIpDigit($ip3) &&
+					$checkIpDigit($ip4)
+				) [true]
+			() [false]
 		;
 		$this->assertFalse(match('abc', $ipValidatorPattern));
 		$this->assertFalse(match('255.255.255.256', $ipValidatorPattern));
@@ -226,12 +215,13 @@ class MatcherTest extends TestCase
 		$checkIpDigit = fn($digit) => $digit >= 0 && $digit <= 255;
 		$ipValidatorPattern = pattern()
 			('/\A(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\z/')
-				->if(fn($ip) => $checkIpDigit($ip[1]) &&
-				                $checkIpDigit($ip[2]) &&
-				                $checkIpDigit($ip[3]) &&
-				                $checkIpDigit($ip[4]))
-				->v(true)
-			()  ->v(false)
+				->if(fn($ip) =>
+					$checkIpDigit($ip[1]) &&
+					$checkIpDigit($ip[2]) &&
+					$checkIpDigit($ip[3]) &&
+					$checkIpDigit($ip[4])
+				) [true]
+			() [false]
 		;
 		$this->assertFalse(match('abc', $ipValidatorPattern));
 		$this->assertFalse(match('255.255.255.256', $ipValidatorPattern));
