@@ -4,7 +4,7 @@ namespace Encase\Matching;
 class MatchCase
 {
 	/** @var array */
-	public $args;
+	public $arg;
 
 	/** @var CaseResultable|array */
 	public $result;

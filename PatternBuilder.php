@@ -150,11 +150,26 @@ class PatternBuilder
 	public static function buildList($args)
 	{
 		$list = [];
+		$hasRestPattern = false;
+		$patternsLeftOfRest = 0;
 
 		foreach ($args as $arg) {
-			$list[] = static::buildArg($arg);
+			$pattern = static::buildArg($arg);
+
+			if ($pattern instanceof RestPattern) {
+				if ($hasRestPattern) {
+					throw new PatternException(
+						'More than one "rest" pattern found in the list.'
+					);
+				}
+
+				$hasRestPattern = true;
+				$patternsLeftOfRest = \count($args) - \count($list) - 1;
+			}
+
+			$list[] = $pattern;
 		}
 
-		return new ListPattern($list);
+		return new ListPattern($list, $patternsLeftOfRest);
 	}
 }

@@ -40,16 +40,16 @@ abstract class Pattern implements Patternable
 	}
 
 	/**
-	 * Match an argument to the pattern.
+	 * Match as many elements of the iterator as possible.
 	 *
-	 * @param  \ArrayIterator $argIt Will be incremented up to the last
-	 *                               argument that matches.
-	 * @return bool|array  FALSE if the pattern doesn't match, TRUE or array
-	 *                     containing bindings if it does match.
+	 * @param  \ArrayIterator $argIt
+	 * @param  int $limit
+	 * @return bool|array
 	 */
-	public function matchArgs($argIt)
+	public function matchIterator($argIt, $limit = 0)
 	{
 		$value = $argIt->current();
+		$argIt->next();
 		return $this->match($value);
 	}
 

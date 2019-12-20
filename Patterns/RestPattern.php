@@ -1,22 +1,38 @@
 <?php
 namespace Encase\Matching\Patterns;
 
+use ArrayIterator;
+
 class RestPattern extends Pattern
 {
-	public function matchArgs($argIt)
+	/**
+	 * Match as many elements of the iterator as possible.
+	 *
+	 * @param  \ArrayIterator $argIt Advanced with each match made.
+	 * @param  int $limit Max number of elements to match.
+	 * @return bool|array
+	 */
+	public function matchIterator($argIt, $limit = 0)
 	{
 		if ($this->bindName) {
 			$args = [];
 
-			do {
-				$args[] = $argIt->current();
-				$argIt->next();
-			} while ($argIt->valid());
+			if ($limit <= 0) {
+				while ($argIt->valid()) {
+					$args[] = $argIt->current();
+					$argIt->next();
+				}
+			} else {
+				for ($i = 0; $i < $limit && $argIt->valid(); ++$i) {
+					$args[] = $argIt->current();
+					$argIt->next();
+				}
+			}
 
 			return [$this->bindName => $args];
 		}
 
-		$argIt->seek($argIt->count() - 1);
+		$argIt->seek($argIt->count());
 		return true;
 	}
 

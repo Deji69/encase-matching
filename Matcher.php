@@ -7,6 +7,7 @@ use ReflectionParameter;
 use function Encase\Functional\map;
 use function Encase\Functional\each;
 use Encase\Matching\Patterns\Pattern;
+use Encase\Matching\Patterns\Patternable;
 use Encase\Matching\Exceptions\MatchException;
 use Encase\Matching\Exceptions\PatternException;
 
@@ -46,43 +47,28 @@ class Matcher
 	 * @throws \Encase\Matching\Exceptions\MatchException
 	 *         Thrown if no case matched the arguments.
 	 */
-	public function match(...$args)
+	public function match($arg)
 	{
-		$argArray = new ArrayObject($args);
-
 		foreach ($this->cases as $case) {
-			$argIt = $argArray->getIterator();
 			$captures = [];
+			$pattern = &$case->arg;
+			$result = $pattern !== null ? self::matchArg($case->arg, $arg) : true;
 
-			$result = each($case->args, function (&$pattern) use (&$argIt, &$captures, $case) {
-				if ($pattern === null) {
-					return;
-				}
-
-				$result = self::matchArg($pattern, $argIt);
-
-				if (!$result) {
-					return true;
-				}
-
+			if ($result !== false) {
 				if (\is_array($result)) {
-					$captures = \array_merge($captures, $result);
+					$captures = $result;
+					$result = true;
 				}
 
 				if (!empty($case->conditions)) {
 					if (self::checkConditions($case->conditions, $captures) === false) {
-						return false;
+						if (!$case->elseResult) {
+							continue;
+						}
 					}
 				}
-
-				$argIt->next();
-			});
-
-			if ($result === true || ($result === false && !$case->elseResult)) {
-				continue;
+				return $case->getValue($this, $result, $captures);
 			}
-
-			return $case->getValue($this, $result !== false, $captures);
 		}
 
 		throw new MatchException('No cases matched the arguments.');
@@ -92,23 +78,19 @@ class Matcher
 	 * Undocumented function
 	 *
 	 * @param  Pattern|PatternArg $patternArg
-	 * @param  \ArrayIterator $argIt
+	 * @param  mixed $arg
 	 * @return bool|array
 	 */
-	protected static function matchArg(&$patternArg, $argIt)
+	protected static function matchArg(&$patternArg, $arg)
 	{
-		if ($patternArg instanceof PatternArgExact) {
-			return $patternArg->arg === $argIt->current();
-		}
-
-		if ($patternArg instanceof Pattern) {
-			return $patternArg->matchArgs($argIt);
+		if ($patternArg instanceof Patternable) {
+			return $patternArg->match($arg);
 		}
 
 		// Replace the PatternArg with the built pattern in order to save time
 		// should we call upon this Matcher again.
 		$patternArg = PatternBuilder::build($patternArg);
-		return $patternArg->matchArgs($argIt);
+		return $patternArg->match($arg);
 	}
 
 	public static function mapCapturesToArgs($paramArgMap, $captures)

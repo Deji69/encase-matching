@@ -16,11 +16,18 @@ class MatcherBuilder implements ArrayAccess
 	protected $cases = [];
 
 	/**
-	 * Holds the pattern arguments for the current case.
+	 * Holds the pattern argument for the current case.
 	 *
-	 * @var array
+	 * @var CaseArg|null
 	 */
-	protected $args = [];
+	protected $arg = null;
+
+	/**
+	 * Indicates an arg has been provided.
+	 *
+	 * @var bool
+	 */
+	protected $hasArg = false;
 
 	/**
 	 * Holds the conditions as added by ->if(). Cleared when the case result is
@@ -39,6 +46,13 @@ class MatcherBuilder implements ArrayAccess
 	 * @var CaseResultable|bool
 	 */
 	protected $elseClause = false;
+
+	/**
+	 * Set to `TRUE` when `continue` is used. Should be followed by a case result
+	 *
+	 * @var bool
+	 */
+	protected $continueClause = false;
 
 	/**
 	 * Add a pattern match argument to the current case.
@@ -84,6 +98,14 @@ class MatcherBuilder implements ArrayAccess
 	 */
 	public function offsetGet($value)
 	{
+		if ($this->hasArg) {
+			if ($value instanceof \Closure) {
+				$this->endCase(new CaseCall($value));
+			} else {
+				$this->endCase(new CaseValue($value));
+			}
+			return $this;
+		}
 		return $this->whenExact($value);
 	}
 
@@ -97,7 +119,7 @@ class MatcherBuilder implements ArrayAccess
 	public function if($func)
 	{
 		$this->assertNotInElseClause('Missing case result for \'else\' clause.');
-		$this->assertHasArgs();
+		$this->assertHasArg();
 		$this->conditions[] = $func;
 		return $this;
 	}
@@ -111,34 +133,8 @@ class MatcherBuilder implements ArrayAccess
 	 */
 	public function ret($binding)
 	{
-		$this->assertHasArgs('Match case must have at least one argument.');
+		$this->assertHasArg('Match case must have at least one argument.');
 		$this->endCase(new CaseArg($binding));
-		return $this;
-	}
-
-	/**
-	 * Bind a function call to the current case.
-	 *
-	 * @param  callable $fn Function to call if the case was matched.
-	 * @return $this
-	 * @throws MatchBuilderException Thrown if there were no case args.
-	 */
-	public function f($fn)
-	{
-		$this->endCase(new CaseCall($fn));
-		return $this;
-	}
-
-	/**
-	 * Bind a value result to the current case.
-	 *
-	 * @param  mixed $value
-	 * @return $this
-	 * @throws MatchBuilderException Thrown if there were no case args.
-	 */
-	public function v($value)
-	{
-		$this->endCase(new CaseValue($value));
 		return $this;
 	}
 
@@ -151,7 +147,7 @@ class MatcherBuilder implements ArrayAccess
 	 */
 	public function continue()
 	{
-		$this->endCase(new CaseContinue(\func_get_args()));
+		$this->continueClause = new CaseContinue(\func_get_args());
 		return $this;
 	}
 
@@ -164,7 +160,7 @@ class MatcherBuilder implements ArrayAccess
 	public function get()
 	{
 		$this->assertNotInElseClause('Missing case result for \'else\' clause.');
-		$this->assertNoExistingArgs('Incomplete match case.');
+		$this->assertNoExistingArg('Incomplete match case.');
 		$this->assertHasCases('Match has no cases.');
 		return new Matcher($this->cases);
 	}
@@ -219,7 +215,8 @@ class MatcherBuilder implements ArrayAccess
 		$this->assertNoExistingConditions('if() cannot be followed by more arguments');
 		$this->assertLastCaseIsNotDefault('Cannot have another case following the default case.');
 		$this->assertNotDefaultCase('Default case can only have one argument.');
-		$this->args[] = new PatternArgExact($arg);
+		$this->arg = new PatternArgExact($arg);
+		$this->hasArg = true;
 		return $this;
 	}
 
@@ -238,10 +235,12 @@ class MatcherBuilder implements ArrayAccess
 		$this->assertNotDefaultCase('Default case can only only have one argument.');
 
 		if (empty($args)) {
-			$this->assertNoExistingArgs('Missing pattern argument.');
-			$this->args[] = null;
+			$this->assertNoExistingArg('Missing pattern argument.');
+			$this->arg = null;
+			$this->hasArg = true;
 		} else {
-			$this->args[] = new PatternArg($args);
+			$this->arg = new PatternArg($args);
+			$this->hasArg = true;
 		}
 		return $this;
 	}
@@ -256,13 +255,13 @@ class MatcherBuilder implements ArrayAccess
 	 */
 	protected function endCase($caseResult)
 	{
-		$this->assertHasArgs();
+		$this->assertHasArg();
 
 		if ($this->elseClause === true) {
 			$this->elseClause = $caseResult;
 		} else {
 			$case = new MatchCase();
-			$case->args = $this->args;
+			$case->arg = $this->arg;
 			$case->conditions = $this->conditions;
 			$case->result = $caseResult;
 
@@ -271,7 +270,8 @@ class MatcherBuilder implements ArrayAccess
 			}
 
 			$this->cases[] = $case;
-			$this->args = [];
+			$this->arg = null;
+			$this->hasArg = false;
 			$this->conditions = [];
 			$this->elseClause = false;
 		}
@@ -300,7 +300,7 @@ class MatcherBuilder implements ArrayAccess
 	 */
 	protected function assertNotDefaultCase($message)
 	{
-		if (!empty($this->args) && \end($this->args) === null) {
+		if ($this->hasArg && $this->arg === null) {
 			throw new MatchBuilderException($message);
 		}
 	}
@@ -314,7 +314,7 @@ class MatcherBuilder implements ArrayAccess
 	 */
 	protected function assertLastCaseIsNotDefault($message)
 	{
-		if (!empty($this->cases) && \end($this->cases)->args[0] === null) {
+		if (!empty($this->cases) && \end($this->cases)->arg === null) {
 			throw new MatchBuilderException($message);
 		}
 	}
@@ -326,9 +326,9 @@ class MatcherBuilder implements ArrayAccess
 	 * @return void
 	 * @throws MatchBuilderException Thrown if assertion isn't met.
 	 */
-	protected function assertHasArgs($message = 'Match case must have at least one argument.')
+	protected function assertHasArg($message = 'Match case must have at least one argument.')
 	{
-		if (empty($this->args)) {
+		if (!$this->hasArg) {
 			throw new MatchBuilderException($message);
 		}
 	}
@@ -340,9 +340,9 @@ class MatcherBuilder implements ArrayAccess
 	 * @return void
 	 * @throws MatchBuilderException Thrown if assertion isn't met.
 	 */
-	protected function assertNoExistingArgs($message)
+	protected function assertNoExistingArg($message)
 	{
-		if (!empty($this->args)) {
+		if ($this->hasArg) {
 			throw new MatchBuilderException($message);
 		}
 	}
