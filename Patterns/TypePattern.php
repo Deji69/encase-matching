@@ -5,13 +5,16 @@ use Encase\Functional\Type;
 
 class TypePattern extends Pattern
 {
+	/** @var Type */
+	protected $type;
+
 	public function __construct(Type $type)
 	{
-		parent::__construct($type);
+		$this->type = $type;
 	}
 
-	public function match($value)
+	public function matchValue($value, array $bindNames = [])
 	{
-		return $this->value->is($value);
+		return $this->type->check($value);
 	}
 }

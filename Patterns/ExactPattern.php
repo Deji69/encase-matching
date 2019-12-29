@@ -1,17 +1,36 @@
 <?php
 namespace Encase\Matching\Patterns;
 
-use ArrayIterator;
-
 class ExactPattern extends Pattern
 {
+	/** @var mixed */
+	protected $value;
+
+	/**
+	 * Create a pattern for matching the exact value.
+	 *
+	 * @param mixed $value
+	 */
 	public function __construct($value)
 	{
-		parent::__construct($value);
+		$this->value = $value;
 	}
 
-	public function match(ArrayIterator $argIt): bool
+	/**
+	 * Get the exact match value.
+	 *
+	 * @return mixed
+	 */
+	public function getValue()
 	{
-		return $argIt->current() === $this->value;
+		return $this->value;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function matchValue($value, $bindNames = [])
+	{
+		return $value === $this->value;
 	}
 }

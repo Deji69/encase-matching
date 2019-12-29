@@ -5,14 +5,11 @@ class WildcardPattern extends Pattern
 {
 	public function __construct($bindName = null)
 	{
-		parent::__construct(null, $bindName);
+		parent::__construct($bindName);
 	}
 
-	public function match($value)
+	public function matchValue($value, array $bindNames = [])
 	{
-		if ($this->bindName !== null) {
-			return [$this->bindName => $value];
-		}
 		return true;
 	}
 }

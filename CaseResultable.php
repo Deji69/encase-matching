@@ -8,7 +8,8 @@ interface CaseResultable
 	 *
 	 * @param  Matcher $matcher
 	 * @param  array   $captures
+	 * @param  mixed   $value
 	 * @return mixed
 	 */
-	public function getValue(Matcher $matcher, array $captures);
+	public function getValue(Matcher $matcher, array $captures, $value);
 }

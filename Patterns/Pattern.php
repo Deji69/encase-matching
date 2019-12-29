@@ -1,56 +1,92 @@
 <?php
 namespace Encase\Matching\Patterns;
 
-abstract class Pattern implements Patternable
-{
-	/** @var mixed */
-	protected $value = null;
+use Encase\Matching\Matchable;
+use Encase\Matching\MatchBindable;
 
+use const Encase\Matching\Support\_;
+
+abstract class Pattern implements Matchable, MatchBindable
+{
 	/** @var string|null */
 	protected $bindName = null;
 
 	/**
+	 * Match a value with this pattern.
+	 *
+	 * @param  mixed $value
+	 * @param  array $captures
+	 * @return bool|array
+	 */
+	public function matchValue($value, array $captures = [])
+	{
+		return false;
+	}
+
+	/**
 	 * @param string|null $bindName Variable name to capture.
 	 */
-	public function __construct($value = null, string $bindName = null)
+	public function __construct(string $bindName = null)
 	{
-		$this->value = $value;
 		$this->bindName = !empty($bindName) ? $bindName : null;
 	}
 
 	/**
-	 * Get the binding name for the wildcard.
-	 *
-	 * @return string
+	 * @inheritDoc
 	 */
-	public function getBindName()
+	public function getBindName(): string
 	{
 		return $this->bindName;
 	}
 
 	/**
-	 * Set the binding name for the wildcard.
-	 *
-	 * @param  string $bindName
-	 * @return void
+	 * @inheritDoc
 	 */
-	public function setBindName(string $bindName)
+	public function getBindNames(): array
 	{
-		$this->bindName = $bindName;
+		return [];
 	}
 
 	/**
-	 * Match as many elements of the iterator as possible.
-	 *
-	 * @param  \ArrayIterator $argIt
-	 * @param  int $limit
-	 * @return bool|array
+	 * @inheritDoc
 	 */
-	public function matchIterator($argIt, $limit = 0)
+	public function setBindName(?string $bindName)
 	{
-		$value = $argIt->current();
-		$argIt->next();
-		return $this->match($value);
+		$this->bindName = ($bindName !== _ && $bindName !== '_')
+			? $bindName
+			: null;
+	}
+
+	/**
+	 * Bind result value using the bind name set for the pattern.
+	 *
+	 * @param  mixed $value
+	 * @param  array|bool $result
+	 * @return array|bool
+	 */
+	public function bindResult($value, $result = true)
+	{
+		if ($result === false) {
+			return false;
+		}
+		if ($result === true) {
+			if ($this->bindName !== null) {
+				return [$this->bindName => $value];
+			}
+			return [];
+		} elseif ($this->bindName !== null) {
+			$result = \array_merge($result, [$this->bindName => $value]);
+		}
+		return $result;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function match($value, array $captures = [])
+	{
+		$result = $this->matchValue($value, $captures);
+		return $this->bindResult($value, $result);
 	}
 
 	/**

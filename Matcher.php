@@ -1,22 +1,27 @@
 <?php
 namespace Encase\Matching;
 
+use Closure;
 use ArrayObject;
-use ReflectionFunction;
-use ReflectionParameter;
 use function Encase\Functional\map;
 use function Encase\Functional\each;
-use Encase\Matching\Patterns\Pattern;
-use Encase\Matching\Patterns\Patternable;
+use function Encase\Functional\union;
+use function Encase\Functional\accumulate;
 use Encase\Matching\Exceptions\MatchException;
 use Encase\Matching\Exceptions\PatternException;
 
-class Matcher
+class Matcher implements CaseResultable, Matchable
 {
 	/** @var MatchCase[] */
 	protected $cases = [];
 
+	/** @var string[]|null */
+	protected $bindNameCache = null;
+
 	/**
+	 * Build up the cases for the matcher. Leave patterns unbuilt to allow them
+	 * to be built lazily.
+	 *
 	 * @param MatchCase[] $cases An array containing at least one MatchCase.
 	 */
 	public function __construct($cases)
@@ -25,72 +30,82 @@ class Matcher
 			throw new PatternException('Matcher must have at least one case.');
 		}
 
-		$this->cases = $cases;
+		foreach ($cases as $patternKey => $result) {
+			$caseResult = (function () use ($result) {
+				if ($result instanceof Closure) {
+					return new CaseCall($result);
+				} elseif (\is_array($result)) {
+					return new Matcher($result);
+				}
+				return new CaseValue($result);
+			})();
+
+			$this->cases[] = new MatchCase(
+				WhenRepository::get($patternKey) ?? $patternKey,
+				$caseResult
+			);
+		}
 	}
 
 	/**
 	 * Invoke `$this->match()` with the given arguments.
 	 *
-	 * @param  mixed ...$args
+	 * @param  mixed $arg
+	 * @param  array $captures
 	 * @return mixed
 	 */
-	public function __invoke(...$args)
+	public function __invoke($arg, array $captures = [])
 	{
-		return $this->match(...$args);
+		return $this->match($arg, $captures);
 	}
 
 	/**
-	 * Match the given arguments.
+	 * Match the argument to a pattern case and get the result.
 	 *
-	 * @param  mixed ...$args
-	 * @return mixed
+	 * @inheritDoc
+	 * @return mixed Returns the result of the matching case.
 	 * @throws \Encase\Matching\Exceptions\MatchException
-	 *         Thrown if no case matched the arguments.
+	 *         Thrown if no case matched the argument.
 	 */
-	public function match($arg)
+	public function match($arg, array $captures = [])
 	{
 		foreach ($this->cases as $case) {
-			$captures = [];
-			$pattern = &$case->arg;
-			$result = $pattern !== null ? self::matchArg($case->arg, $arg) : true;
+			$result = $case->match($arg, $captures);
 
 			if ($result !== false) {
 				if (\is_array($result)) {
-					$captures = $result;
-					$result = true;
+					$captures = \array_merge($captures, $result);
 				}
 
-				if (!empty($case->conditions)) {
-					if (self::checkConditions($case->conditions, $captures) === false) {
-						if (!$case->elseResult) {
-							continue;
-						}
-					}
+				try {
+					return $case->getValue($this, $captures, $arg);
+				} catch(MatchException $e) {
 				}
-				return $case->getValue($this, $result, $captures);
 			}
 		}
 
-		throw new MatchException('No cases matched the arguments.');
+		throw new MatchException('No cases matched the argument.');
 	}
 
 	/**
-	 * Undocumented function
-	 *
-	 * @param  Pattern|PatternArg $patternArg
-	 * @param  mixed $arg
-	 * @return bool|array
+	 * @inheritDoc
 	 */
-	protected static function matchArg(&$patternArg, $arg)
+	public function getValue(Matcher $matcher, array $captures, $value)
 	{
-		if ($patternArg instanceof Patternable) {
-			return $patternArg->match($arg);
-		}
+		return $this->match($value, $captures);
+	}
 
-		// Replace the PatternArg with the built pattern in order to save time
-		// should we call upon this Matcher again.
-		$patternArg = PatternBuilder::build($patternArg);
-		return $patternArg->match($arg);
+	/**
+	 * @inheritDoc
+	 */
+	public function getBindNames(): array
+	{
+		$this->bindNameCache ??= accumulate(
+			$this->cases,
+			[],
+			fn($array, $case) => union($array, $case->getBindNames())
+		);
+		return $this->bindNameCache;
 	}
 
 	public static function mapCapturesToArgs($paramArgMap, $captures)
@@ -124,24 +139,28 @@ class Matcher
 		});
 	}
 
-	public static function getParamArgMappingForCall($func, $captures)
+	/**
+	 * @param  string[] $bindNames
+	 * @param  array $captures
+	 * @return array
+	 */
+	public static function getParamArgMappingForCall($bindNames, $captures)
 	{
-		$refl = new ReflectionFunction($func);
 		$i = 0;
 		$params = [];
-		$reflParams = $refl->getParameters();
 
 		each(
-			$reflParams,
-			function ($parameter) use ($captures, &$params, &$i) {
-				/** @var ReflectionParameter $parameter */
-				if (isset($captures[$parameter->getName()])) {
-					$params[] = $parameter->getName();
+			$bindNames,
+			function ($bindName) use ($captures, &$params, &$i) {
+				if (isset($captures[$bindName])) {
+					$params[] = $bindName;
 					return;
 				}
+
 				if (!isset($captures[$i])) {
 					return false;
 				}
+
 				$params[] = $i++;
 			}
 		);

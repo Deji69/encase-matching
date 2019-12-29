@@ -1,7 +1,8 @@
 <?php
 namespace Encase\Matching\Patterns;
 
-use Encase\Matching\Exceptions\MatchBuilderException;
+use Encase\Matching\KeyMatchable;
+use Encase\Matching\MultiMatchable;
 
 class ListPattern extends Pattern
 {
@@ -9,42 +10,73 @@ class ListPattern extends Pattern
 	protected $list;
 
 	/** @var int */
-	protected $patternsLeftOfRest;
+	protected $leaveRightOfRest;
 
-	public function __construct($list, $patternsLeftOfRest = 0)
+	/** @var string[] */
+	protected $bindNames;
+
+	/**
+	 * @param array $list
+	 * @param int $leaveRightOfRest
+	 * @param string[] $bindNames
+	 */
+	public function __construct($list, $leaveRightOfRest = 0, $bindNames = [])
 	{
 		$this->list = $list;
-		$this->patternsLeftOfRest = $patternsLeftOfRest;
+		$this->bindNames = $bindNames;
+		$this->leaveRightOfRest = $leaveRightOfRest;
 	}
 
-	public function match($value)
+	/**
+	 * @inheritDoc
+	 */
+	public function matchValue($value, array $captures = [])
 	{
 		$captures = [];
 		$value = (array)$value;
 
 		$argIt = new \ArrayIterator($value);
+		$isMapped = false;
 
-		foreach ($this->list as $pattern) {
-			if (!$argIt->valid()) {
+		foreach ($this->list as &$pattern) {
+			$mapByKey = $pattern instanceof KeyMatchable;
+
+			if (!$argIt->valid() && !$mapByKey) {
 				return false;
 			}
 
-			$capture = $pattern->matchIterator($argIt, $this->patternsLeftOfRest);
+			if ($mapByKey) {
+				$isMapped = true;
+				$result = $pattern->match($value, $captures);
+			} elseif ($pattern instanceof MultiMatchable) {
+				$result = $pattern->matchIterator($argIt, $captures, $this->leaveRightOfRest);
+			} else {
+				$result = $pattern->match($argIt->current(), $captures);
 
-			if ($capture === false) {
+				if ($result !== false) {
+					$argIt->next();
+				}
+			}
+
+			if ($result === false) {
 				return false;
 			}
 
-			if (\is_array($capture)) {
-				$captures = \array_merge($captures, $capture);
+			if (\is_array($result)) {
+				$captures = \array_merge($captures, $result);
 			}
 		}
 
 		// invalidate if there are unmatched elements left in the list
-		if ($argIt->valid()) {
+		if ($argIt->valid() && !$isMapped) {
 			return false;
 		}
 
 		return $captures;
+	}
+
+	public function getBindNames(): array
+	{
+		return $this->bindNames;
 	}
 }

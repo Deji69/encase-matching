@@ -2,30 +2,16 @@
 namespace Encase\Matching\Support;
 
 use Encase\Matching\Matcher;
-use InvalidArgumentException;
-use Encase\Matching\MatcherBuilder;
 
 /**
- * Matches arguments against a Matcher.
+ * Matches arguments against a set of cases.
  *
- * All arguments but the last are treated as match arguments.
- * The last argument given should be a Matcher or MatcherBuilder.
- *
- * @param  ...$args
- * @param  Matcher|MatcherBuilder
- * @return mixed Match result.
+ * @param  mixed $value Value to match.
+ * @param  array $cases `When` cases to match against.
+ * @return mixed Result of matched case.
  */
-function match(...$args)
+function match($value, $cases)
 {
-	$matcher = \array_pop($args);
-
-	if ($matcher instanceof MatcherBuilder) {
-		$matcher = $matcher->get();
-	} else {
-		throw new InvalidArgumentException(
-			'Last argument of match() call must be a pattern'
-		);
-	}
-
-	return $matcher->match(...$args);
+	$matcher = new Matcher($cases);
+	return $matcher->match($value);
 }

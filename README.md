@@ -18,6 +18,7 @@ Encase Pattern Matching Library
 			- [Return a Binding](#return-a-binding)
 			- [Call a Function](#call-a-function)
 			- [Recurse the Matcher](#recurse-the-matcher)
+		- [Function-like Matching](#function-like-matching)
 	- [Pattern Overview](#pattern-overview)
 - [Patterns](#patterns)
 	- [Constant Pattern](#constant-pattern)
@@ -176,6 +177,25 @@ Given `func` is a callable, it will be called and any bindings that match the pa
 
 The matcher will be re-invoked. `...` is an optional list of bindings to pass to the next iteration of the matcher. 
 
+### Function-like Matching
+
+A pattern object, which is usually always modifiable, can be turned into an immutable object by calling the `->get()` method. You can still use `->match(...)` on the resulting object, but since invokation will no longer be considered as an attempt to add a new match case, you can also match by invoking, allowing you to create function-like objects out of built patterns.
+
+```php
+$pattern = pattern()
+	(_) ->v(true)
+	()  ->v(false)
+;
+//$pattern('a');       // not allowed - this would be equivalent to adding a new pattern case
+$pattern->match('a');  // returns: true
+$function = $pattern->get();
+$function->match('a'); // returns: true
+$function('a');        // returns: true
+$function();           // returns: false
+```
+
+This allows for building easy to use functional-style functions out of patterns with minimal effort.
+
 ## Pattern Overview
 
 The following table lists the types of patterns supported by this library and their syntax. The links will direct you to further information about a particular type of pattern.
@@ -191,16 +211,28 @@ The following table lists the types of patterns supported by this library and th
 
 # Patterns
 
+```php
+match($x, [
+
+]);
+```
+
 ## Constant Pattern
 
 Exact values can be matched by using square brackets `[]` around a constant or variable in a case:
 
 ```php
+match('hello' pattern(
+	when(1) ['one'],
+	when(3.14) ['pi'],
+	when($var) ['$var'],
+	when('hello') [fn($v) => $v.' world']
+));
 pattern()
-	[1]     ->v('one')
-	['a']   ->v('A')
-	[3.14]  ->v('pi')
-	[$var]  ->v('$var')
+	[1]     ['one']
+	['a']   ['A']
+	[3.14]  ['pi']
+	[$var]  ['$var']
 ->match($var); // result: '$var'
 ```
 
@@ -242,11 +274,11 @@ Arguments can be bound and used later in [if clauses](#if-clause) and [result ex
 ```php
 $getParity = pattern()
 	(_(Type::int())->v)
-		->if(fn($v) => ($v % 2) == 0)
-		->else->v('odd')
-		->v('even')
+	  ->if(fn($v) => ($v % 2) == 0)
+	  ->else->v('odd')
+	  ->v('even')
 	(_()->v)
-		->f(fn($v) => '$v is not an integer')
+	  ->f(fn($v) => '$v is not an integer')
 ->get();
 
 $getParity(5);     // result: 'odd'
@@ -264,12 +296,12 @@ The pattern parser identifies strings starting and ending with a `/` character (
 $checkIpDigit = fn($digit) => $digit >= 0 && $digit <= 255;
 $ipValidatorPattern = pattern()
 	('/\A(?P<ip1>\d{1,3})\.(?P<ip2>\d{1,3})\.(?P<ip3>\d{1,3})\.(?P<ip4>\d{1,3})\z/')
-		->if(fn($ip1, $ip2, $ip3, $ip4) => $checkIpDigit($ip1) &&
-		                                   $checkIpDigit($ip2) &&
-		                                   $checkIpDigit($ip3) &&
-		                                   $checkIpDigit($ip4))
-		->v(true)
-	()  ->v(false)
+	  ->if(fn($ip1, $ip2, $ip3, $ip4) => $checkIpDigit($ip1) &&
+	                                     $checkIpDigit($ip2) &&
+	                                     $checkIpDigit($ip3) &&
+	                                     $checkIpDigit($ip4))
+	  ->v(true)
+	()->v(false)
 ;
 match('abc', $ipValidatorPattern);              // returns: false
 match('255.255.255.256', $ipValidatorPattern);  // returns: false

@@ -1,13 +1,15 @@
 <?php
 namespace Encase\Matching\Patterns;
 
-use Encase\Regex\Patternable as RegexPatternable;
-
 use function Encase\Functional\accumulate;
 use function Encase\Functional\isIndexedArray;
+use Encase\Regex\Patternable as RegexPatternable;
 
 class RegexPattern extends Pattern
 {
+	/** @var string */
+	protected $pattern;
+
 	/**
 	 * Construct a Regex pattern.
 	 *
@@ -15,15 +17,18 @@ class RegexPattern extends Pattern
 	 */
 	public function __construct(RegexPatternable $pattern)
 	{
-		parent::__construct($pattern->getPattern());
+		$this->pattern = $pattern->getPattern();
 	}
 
-	public function match($value)
+	/**
+	 * @inheritDoc
+	 */
+	public function matchValue($value, array $captures = [])
 	{
 		$matches = [];
 
 		if (\is_string($value)) {
-			if (\preg_match($this->value, $value, $matches)) {
+			if (\preg_match($this->pattern, $value, $matches)) {
 				if (isIndexedArray($matches)) {
 					return [$matches];
 				}

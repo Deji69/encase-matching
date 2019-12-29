@@ -10,7 +10,15 @@ class CaseValue implements CaseResultable
 		$this->value = $value;
 	}
 
-	public function getValue($matcher, $args)
+	/**
+	 * Get the result value.
+	 *
+	 * @param  Matcher $matcher
+	 * @param  array $args
+	 * @param  mixed $value
+	 * @return mixed
+	 */
+	public function getValue($matcher, $args, $value)
 	{
 		return $this->value;
 	}
