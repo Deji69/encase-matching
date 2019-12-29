@@ -238,32 +238,28 @@ class PatternBuilder
 		foreach ($args as $k => $v) {
 			$keyIsBind = !\is_int($k) && \in_array($k, $bindNames, true);
 
-			if ($keyIsBind && !\is_object($v)) {
-				$pattern = new ExactPattern($v);
+			if ($v instanceof Patternable) {
+				$pattern = $v->getPattern($bindNames);
+			} elseif ($v instanceof Matchable) {
+				$pattern = $v;
 			} else {
-				if ($v instanceof Patternable) {
-					$pattern = $v->getPattern($bindNames);
-				} elseif ($v instanceof Matchable) {
-					$pattern = $v;
-				} else {
-					$pattern = static::buildArg($v, $bindNames);
+				$pattern = static::buildArg($v, $bindNames);
+			}
+
+			if ($pattern instanceof Pattern) {
+				if ($keyIsBind) {
+					$pattern->setBindName($k);
 				}
 
-				if ($pattern instanceof Pattern) {
-					if ($keyIsBind) {
-						$pattern->setBindName($k);
+				if ($pattern instanceof RestPattern) {
+					if ($hasRestPattern) {
+						throw new PatternException(
+							'Only one \'*\' pattern allowed in a list.'
+						);
 					}
 
-					if ($pattern instanceof RestPattern) {
-						if ($hasRestPattern) {
-							throw new PatternException(
-								'Only one \'*\' pattern allowed in a list.'
-							);
-						}
-
-						$hasRestPattern = true;
-						$patternsLeftOfRest = \count($args) - \count($list) - 1;
-					}
+					$hasRestPattern = true;
+					$patternsLeftOfRest = \count($args) - \count($list) - 1;
 				}
 			}
 
