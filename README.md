@@ -4,83 +4,49 @@ Encase Pattern Matching Library
 
 - [Encase Pattern Matching Library](#encase-pattern-matching-library)
 - [Overview](#overview)
-	- [Design](#design)
-		- [Quirks &amp; Limitations](#quirks-amp-limitations)
 	- [Syntax](#syntax)
 		- [Matcher Syntax](#matcher-syntax)
-		- [Pattern Argument Syntax](#pattern-argument-syntax)
-		- [If Clause](#if-clause)
-		- [Else Clause](#else-clause)
-			- [Syntax](#syntax-1)
-			- [Example](#example)
-		- [Result Syntax](#result-syntax)
-			- [Return a Value](#return-a-value)
-			- [Return a Binding](#return-a-binding)
-			- [Call a Function](#call-a-function)
-			- [Recurse the Matcher](#recurse-the-matcher)
-		- [Function-like Matching](#function-like-matching)
+		- [Case Conditions](#case-conditions)
+		- [Case Results](#case-results)
+		- [Match Guarding](#match-guarding)
 	- [Pattern Overview](#pattern-overview)
 - [Patterns](#patterns)
 	- [Constant Pattern](#constant-pattern)
 	- [Type Pattern](#type-pattern)
 	- [Wildcard Pattern](#wildcard-pattern)
 	- [Binding Pattern](#binding-pattern)
+	- [List Pattern](#list-pattern)
+	- [Array Pattern](#array-pattern)
 	- [Regex Pattern](#regex-pattern)
   
 # Overview
 
-Pattern Matching is a popular tool which has been increasingly implemented in many non-functional languages. PHP has no such feature and userland implementation of it can be tricky due to its relatively tight syntax restraints and limited metaprogramming capabilities. At least one attempt has been made to bring this feature to PHP in a library ([functional-php/pattern-matching](https://github.com/functional-php/pattern-matching)). This library tries to take a different aproach to (ab)using arrays and parsing strings by (ab)using what few PHP features exist that allow creation of new syntactic sugar...
+Pattern Matching is a popular tool which has been increasingly implemented in many non-functional languages. PHP has no such feature and userland implementation of it can be tricky due to its relatively tight syntax restraints and limited metaprogramming capabilities. At least one attempt has been made to bring this feature to PHP in a library ([functional-php/pattern-matching](https://github.com/functional-php/pattern-matching)). This library attempts to offer powerful userland pattern matching a syntax which fits in with PHP better.
 
 ```php
-$result = match(3, pattern()
-	[0]   ->v('zero')
-	('n') ->if(fn($n) => $n % 2 !== 0) ->v('odd')
-	('n') ->if(fn($n) => $n % 2 === 0) ->v('even')
-	()    ->v('not a number!')
-);
+$result = match(3, [
+	0 => 'zero',
+	when(Type::int()) => [
+		when(fn($n) => $n % 2 !== 0) => 'odd',
+		when(fn($n) => $n % 2 === 0) => 'even',
+	],
+	_ => 'not a number!'
+]); // odd
 ```
 
-If no cases match the given arguments, a `MatcherException` exception is thrown. Default cases are made using `()`, and will be called if no other case matches instead of throwing an exception.
-
-## Design
-
-The thought process behind the design of this library is probably worth a mention, either for an understanding of the choices or just to satisfy any curiosity.
-
-This library does not attempt to base its approach much on any one other languages implementation of pattern matching and instead provides something that fits better into PHP's existing syntax and that existing PHP developers with no experience in FP  languages are more likely to find approachable. I've tried to think more about what PHP problems can be solved with it than pretending that there'd be much use for Haskell style pattern matching in PHP.
-
-### Quirks & Limitations
-
-The array accessing syntax `[]` is used to match values against constants or other variables. Amazingly, PHP does not enforce the type of value used within square brackets. Prior to PHP 7.4, `{}` could be used, which was the original preference - this syntax however was deprecated in PHP 7.4, so cannot be used without deprecation notices. Some of the syntactical choices where made around the fact that you cannot use `[]` or `{}` with values that aren't integers or strings, and then immediately follow it up with a call `()`, as this is interpreted similarly to `->arg()` and the `__call` magic method enforces a string method name.
-
-The necessary overhead incurred by building patterns at runtime is mitigated somewhat by caching where possible. Reflection is used to determine how to pass bindings to [If Clauses](#if-clause) and when [calling functions](#call-a-function), but the information is saved in a way which makes re-using the same matcher object work faster on repeated calls or when recursed. The pattern matching syntax is fairly well enforced at build time but some things may not be checkable until the matcher is first used - for example, handling whether the patterns cover all possible cases.
+If no cases match the given arguments, a `MatcherException` exception is thrown. Default cases are made using `_` or `'_'`, and will be called if no other case matches instead of throwing an exception.
 
 ## Syntax
 
-Two free standing functions exist for building and matching patterns: `match()` and `pattern()`. The `match()` function takes at least 1 argument, the last argument must be a matcher which will be invoked with the other arguments. The `pattern()` function begins construction of a matcher and also has a `match()` method to match arguments with. Thus, two pattern matching approaches exist, "pattern first" and "match first":
-
-**Match First**
-```php
-$result = match($arg, pattern()
-	// Patterns...
-);
-```
-
-**Pattern First**
-```php
-$result = pattern()
-	// Patterns...
-->match($arg);
-```
-
-The result of `pattern()` including the pattern syntax is always an object on which `->match(...)` could be called, thus you can even save matchers in a variable to re-use later:
+Two free standing functions exist for building and matching patterns: `match()` and `when()`. The `match()` function takes 2 arguments, the first is the value to be matched and the second is an array containing match cases. A match case looks like a free-standing, single pattern argument or one or more pattern arguments surrounded by `when`, followed by `=>` and then the result on the right...
 
 ```php
-$matcher = pattern()
-	// Patterns...
-;
-
-$matcher->match(...);
-match(..., $matcher);
+$matcher = match(3, [
+	when(1, 2, 3) => 'one, two or three',
+	when(4) => 'four',
+	5 => 'five',
+	_ => 'something else',
+]);
 ```
 
 ### Matcher Syntax
@@ -88,222 +54,242 @@ match(..., $matcher);
 A call to `pattern()` returns a MatcherBuilder object, allowing a unique syntax for building a pattern matcher.
 
 ```php
-pattern()
-	pattern-argument[, pattern-argument...]
-		[
-			->if(cond)
-			[->else -> result-expression]
-		]
-		-> result-expression
+// matcher-syntax
+	match(/* var */, /* match-array */);
+// match-array
+	[/* match-case[, match-case...] */]
+// match-case:
+	/* pattern-arg */ => /* case-result */
+	when(/* pattern-arg[, pattern-arg...] */) => /* case-result */
+// case-result: value|function|match-array
 ```
 
-See [Pattern Argument Syntax](#pattern-argument-syntax) for the syntax of `pattern-argument` and [Result Syntax](#result-syntax) for the syntax of `result-expression`. The `if` clause is optional and information can be found in [If Clause](#if-clause). If there is an `if` clause, an `else` can optionally be added and information on it can be found in [Else Clause](#else-clause).
+### Case Conditions
 
-### Pattern Argument Syntax
-
-A pattern argument looks like `[...]` for exact value arguments or `(...)` for pattern arguments, where `...` is one or more (in thecaseof pattern arguments) arguments to build a pattern. However `(...)` will also fall back to matching exactly if `...` does not make up a valid pattern.
-
-### If Clause
-
-After the pattern arguments, an `if` clause can optionally be defined to further filter the case based on the matched patterns.
+Inside the array for a match statement, case conditions make up the of the array. Since PHP arrays only accept string and integer keys (and note that numeric strings are converted to integers for array keys), a `when()` helper function is provided to wrap more complex pattern arguments. This allows patterns to be built using more than one argument, and using non array key compatible types such as arrays and objects (including closures). See [Pattern Overview](#pattern-overview) for more information on the patterns available and the argument types used to build them. Under the hood, the `when()` function returns a string representing the pattern object to be built with the provided arguments which can be used as an array key, and looked up later to retrieve the pattern object.
 
 ```php
-->if(cond)
+arg1 => ...                 // one string/int argument used to build pattern
+when(arg1, ...) => ...      // one or more arguments used to build pattern, wrapped in when()
 ```
 
-`cond` must be a function. On trying to match one or more arguments, the arguments are first matched to the pattern arguments and any resulting captures can be passed to the `cond` function. On the first call, reflection will be used to determine which captures to pass to the function, and this information will be cache'd for any future matches. Any named capture matching a paramter name are passed to that paramter. For any other parameters, unnamed captures are passed in-order to the function.
+Single string and integer arguments are treated the same (aside from PHP's own key handling) no matter whether they are wrapped in `when()`, thus omitting `when()` for single arguments can be largely treated as a shortened syntax. However, using `when()` is still better for type safety due to PHP's array key handling and may also be slightly faster if the match is performed more than once due to the pattern object already being built.
 
-### Else Clause
-
-After an [if clause](#if-clause), an `else` clause can optionally be defined. Usually, if an `if` clause fails, the matcher proceeds to the next pattern case. In some cases, you may still want to specify an action if the current pattern matched but the `if` clause failed. An `else` clause allows you to do this without creating another pattern case which matches the same arguments and omitting the `if` clause.
-
-#### Syntax
-```php
-->if(cond)
-->else -> result-expression
--> result-expression
-```
-
-Following an `if` clause, `else` is specified, which must be followed by a [result expression](#result-syntax). This result expression must also be followed by the result expression for the `if` clause.
-
-#### Example
+Note that single string arguments which match names of parameters in related closure case conditions and case result closures are treated as bind names to capture rather than the exact strings themselves. If you need strings which match var names in case results and sub-case patterns and results, wrap the string in `val()`.
 
 ```php
-pattern()
-	('a') ->if(fn($a) => $a > 10)
-	      ->v('it is over 10')
-	('a') ->if(fn($a) => $a < 10)
-	      ->else->v('it is 10')
-	      ->v('it is under 10')
-;
+$result = match((object)['x' => 10, 'y'], [
+	when(['x', val('y')]) => [
+		when(fn($x) => $x > 100) => 'x is out of bounds',
+		when(fn($obj, $y = 0) => $y > 100) => 'y is out of bounds',
+	],
+	when(['x', 'y']) => fn($x) => "x = $x",
+	_ => 'error',
+]); // result: x = 10
 ```
 
-### Result Syntax
+Note that if `x` was originally assigned a value higher than 100, `'x is out of bounds'` would instead be the result as both outer patterns match the object being destructured. If the `'y'` value in the object was changed to `'z'`, `'error'` would instead be the result as neither patterns match. If `val()` was not used around `'y'`, there would be an error as the object would be checked for the `y` property as there is a `$y` parameter in the sub-case parameter lists.
 
-After all match arguments are given, and after the optional [if clause](#if-clause), the result must be specified after `->`.
+In the 2nd outer `when`, `'y'` is already only used to match the value in the object. `val()` doesn't need to be used because none of the closures within the same scope are using that as a parameter name.
 
-There are 4 possibilities for each match cases result: return a value, return a binding, call a function or recurse the matcher.
+### Case Results
 
-#### Return a Value
+The result comes on the right of the `=>` which follows the [Pattern Arguments](#pattern-arguments). Here a value can be provided which will be the result if the case is matched. Alternatively, it can be a closure which is to be called if the case is matched. It can also be an array containing additional "sub-cases", explained in [Match Guarding](#match-guarding).
 
 ```php
-->v(5)
+... => null,                     // return null
+... => fn() => echo 'hello',     // say hello
+... => [...],                    // match guarding
 ```
 
-In this case, the value given will be returned as-is.
+### Match Guarding
 
-#### Return a Binding
+Match guarding can be performed with no real additional syntax. Match guarding comes as a product of the recursive ability of this pattern matching implementation. If a case result is an array, it will be treated as a set of sub-cases to recurse to if the case condition passes. These sub-cases can have results as normal, but can too have their own sub-cases, making up what is traditionally a complex if-elseif-else structure.
 
 ```php
-->ret('binding')
+echo match($i, [
+	when(Type::int()) => [
+		when(fn($n) => $n <= 0) => '',
+		when(fn($n) => $n % 3 == 0) => [
+			when(fn($n) => $n % 15 == 0) => fn() => 'fizzbuzz',
+			when(fn($n) => $n % 5 == 0) => 'fizz',
+			_ => 'buzz',
+		],
+		_ => fn($n) => $n,
+	],
+	_ => function() {
+		throw new RuntimeException('input was not an int');
+	}
+]);
+echo "\n";
 ```
 
-Where `'binding'` is a string with the name of any pny pattern argument binding, the bound value will be returned.
-
-#### Call a Function
-
-```php
-->f(func)
-```
-
-Given `func` is a callable, it will be called and any bindings that match the parameters will be passed in the same manner as with the [if clause](#if-clause). The result of this call will be the result of the match expression.
-
-
-#### Recurse the Matcher
-
-```php
-->continue(...)
-```
-
-The matcher will be re-invoked. `...` is an optional list of bindings to pass to the next iteration of the matcher. 
-
-### Function-like Matching
-
-A pattern object, which is usually always modifiable, can be turned into an immutable object by calling the `->get()` method. You can still use `->match(...)` on the resulting object, but since invokation will no longer be considered as an attempt to add a new match case, you can also match by invoking, allowing you to create function-like objects out of built patterns.
-
-```php
-$pattern = pattern()
-	(_) ->v(true)
-	()  ->v(false)
-;
-//$pattern('a');       // not allowed - this would be equivalent to adding a new pattern case
-$pattern->match('a');  // returns: true
-$function = $pattern->get();
-$function->match('a'); // returns: true
-$function('a');        // returns: true
-$function();           // returns: false
-```
-
-This allows for building easy to use functional-style functions out of patterns with minimal effort.
+If a `when()` pattern arg is a closure, it is either given previously destructured values inherited from the parent case, or the matched value itself.
 
 ## Pattern Overview
 
 The following table lists the types of patterns supported by this library and their syntax. The links will direct you to further information about a particular type of pattern.
 
 | Name                   | Description            | Example                         |
-| ---------------------- | ---------------------- | ------------------------------- |
- [Constant Pattern](#constant-pattern) | Matches exact values | `["str"]`, `[3.5]`, `[5]`, `[$var]`
- [Type Pattern](#type-pattern) | Matches values by type | `(Type::int())`, `(Type::object('MyClass'))`
- [Wildcard Pattern](#wildcard-pattern) | Matches anything | `(_)` or `('_')`
- [Binding Pattern](#binding-pattern) | Matches on a pattern and captures the value | `(_(...)->myBind)`
- [Regex Pattern](#regex-pattern) | Matches strings to regular expressions | `('/[A-Z]*/')`
- [List Pattern](#list-pattern) | Matches a list of elements | `('first', _('*')->rest)`
+| ---------------------- |----------------------- | ------------------------------- |
+ [Constant Pattern](#constant-pattern) | Matches exact values | `"str"`, `3.5`, `5`, `$var`
+ [Type Pattern](#type-pattern) | Matches values by type | `when(Type::int())`, `when(Type::object(MyClass::class))`, `when(MyClass::class, [])`
+ [Wildcard Pattern](#wildcard-pattern) | Matches anything | `_` or `'_'`
+ [Binding Pattern](#binding-pattern) | Matches on a pattern and captures the value | `'n'`, `'n' => ...`
+ [List Pattern](#list-pattern) | Matches a list of elements | `when(['first', '*', 'last'])`
+ [Array Pattern](#array-pattern) | Matches key-value pairs in an associative array. | `key('foo') -> _ ('bar')`, `'odd' => key(Type::int()) -> oddKey (1, 3, 5, 7, 9)`
+ [Regex Pattern](#regex-pattern) | Matches strings to regular expressions | `'/[A-Z]*/i'`
 
 # Patterns
 
-```php
-match($x, [
-
-]);
-```
-
 ## Constant Pattern
 
-Exact values can be matched by using square brackets `[]` around a constant or variable in a case:
-
 ```php
-match('hello' pattern(
-	when(1) ['one'],
-	when(3.14) ['pi'],
-	when($var) ['$var'],
-	when('hello') [fn($v) => $v.' world']
-));
-pattern()
-	[1]     ['one']
-	['a']   ['A']
-	[3.14]  ['pi']
-	[$var]  ['$var']
-->match($var); // result: '$var'
+match('hello' [
+	1 => 'one',
+	3.14 => 'pi',
+	when(val($var)) => '$var',
+	'hello' => fn($v) => $v.' world',
+)); // result: 'hello world'
 ```
 
 ## Type Pattern
 
-Values can be matched based on their type using the `Encase\Functional\Type` class type representation from the Encase\Functional library.
+Values can be matched based on their type using the `Encase\Functional\Type` class type representation from the Encase\Functional library. If simply matching objects of a certain type, then `(className, [])` can instead be used, where `className` is the fully-qualified class name of the class.
 
 ```php
 use Encase\Functional\Type;
 
-$pattern = pattern()
-	(Type::null())             ->v('null found')
-	(Type::int())              ->v('int found')
-	(Type::float())            ->v('float found')
-	(Type::string())           ->v('string found')
-	(Type::object('stdClass')) ->v('stdClass object found')
-	(Type::object())           ->v('object found')
-;
-$pattern->match((object)['a' => 'stdClass']); // result: 'stdClass object found'
-$pattern->match(new MyClass); // result: 'object found'
+$pattern = fn($val) => match($val, [
+	when(Type::null()) => 'null found',
+	when(Type::int()) => 'int found',
+	when(Type::float()) => 'float found',
+	when(Type::string()) => 'string found',
+	when(Type::object(\stdClass::class)) => 'stdClass object found',
+	when(Type::object()) => 'object found',
+	when(Type::class, []) => 'Type object found'.
+]);
+$pattern(42); // result: int found
+$pattern((object)['a' => 'stdClass']); // result: 'stdClass object found'
+$pattern(new MyClass); // result: 'object found'
+$pattern(Type::int()); // result: 'Type object found'
 ```
 
 ## Wildcard Pattern
 
-Wildcards can be used with `_` or `'_'`. A `_` on its own is equivalent to `'_'`. Note that the `_` symbol can also be called as a function for a [Binding Pattern](#binding-pattern). A single `_` matches any single argument.
+Wildcards can be used with the `\Encase\Matching\Support\_` constant or `'_'`. A `_` on its own is treated as equivalent to `'_'`. Wildcards ignore arguments and elements and do not bind to parameters. For binding, see [Binding Pattern](#binding-pattern).
 
 ```php
-pattern()
-	(_)         ->v('1 arg')
-	(_) (_)     ->v('2 args')
-	(_) (_) (_) ->v('3 args')
-->match('a', 123); // result: 2 args
+use Encase\Matching\Support\_;
+
+match(['a', 12], [
+	when([]) => '0 items',
+	when([_]) => '1 item',
+	when([_, _]) => '2 items',
+	when([_, _, _]) => '3 items',
+]); // result: 2 items
 ```
 
 ## Binding Pattern
 
-Arguments can be bound and used later in [if clauses](#if-clause) and [result expressions](#result-syntax). The syntax is `_(pattern-expr)->binding-name` where `pattern-expr` can be any pattern and `binding-name` is the name which shall refer to the matched argument later.
+Arguments can be bound and used in results, sub-case conditions and sub-case results, etc.
 
 ```php
-$getParity = pattern()
-	(_(Type::int())->v)
-	  ->if(fn($v) => ($v % 2) == 0)
-	  ->else->v('odd')
-	  ->v('even')
-	(_()->v)
-	  ->f(fn($v) => '$v is not an integer')
-->get();
+$getParity = fn($val) => match($val, [
+	when(Type::int()) => [
+		when(fn($v) => $v % 2 == 0) => 'even',
+		_ => 'odd',
+	]
+	'n' => fn($n) => "$n is not an integer",
+]);
 
-$getParity(5);     // result: 'odd'
-$getParity(8);     // result: 'even'
-$getParity('ab');  // result: 'ab is not an integer'
+$getParity(5);      // result: 'odd'
+$getParity(8);      // result: 'even'
+$getParity('foo');  // result: 'foo is not an integer'
 ```
 
-In this pattern, we create a binding pattern for arguments matching `Type::int()` (see [Type Pattern](#type-pattern)), and associate it with the name `v`. We can now declare `$v` in parameter lists or use `'v'` in [result expressions](#result-syntax) to use and refer to this binding.
+## List Pattern
+
+Arguments within `when([...])` will match lists of values (ordered array values), unless `key()` is used for one of them, in which case it becomes an [Array Pattern](#array-pattern).
+
+```php
+$getTicTacToeRowResult = fn($list) => match($list, [
+	when(['x', 'y', 'z']) => [
+		when(fn($x, $y, $z) => $x == $y && $y == $z) => [
+			when(fn($x) => $x == 'x') => 'crosses wins!',
+			when(fn($x) => $x == 'o') => 'naughts wins!',
+		],
+	],
+	when(['x', 'o', 'x']) => fn($xox) => \implode(',', $xox).'!'
+]);
+$getTicTacToeRowResult(['o', 'o', 'o']); // naughts wins!
+$getTicTacToeRowResult(['x', 'o', 'x']); // x,o,x!
+```
+
+Within a list pattern, you can match the "remaining" arguments with `'*'`, or for example `'*param'` if you want to bind to a `$param` parameter in the case result.
+
+```php
+$getPalindromeType = function($list) use (&$isPalindrome) {
+	return match($list, [
+		when(['h', '*m', 't']) => [
+			when(fn($h, $t) => $h === $t) => fn($m) => $getPalindromeType($m),
+		],
+		when(['head', 'tail']) => [
+			when(fn($head, $tail) => $head === $tail) => 'even',
+		],
+		when([_]) => 'odd',
+		_ => false,
+	]);
+};
+```
+
+To match a value by pattern, yet also bind it, use `'paramName' => pattern...`.
+
+```php
+$getReservedSeat = fn($seat) => match($seat, [
+	when(['row' => Type::int(), 'seat' => '/\A[A-C]\z/'])
+		=> fn($row, $seat) => "You are seated at $row-$seat",
+	_ => 'Seat allocation is invalid',
+]);
+$getReservedSeat([22, 'B']);  // 'You are seated at 22-B'
+$getReservedSeat([16, 'C']);  // 'You are seated at 16-C'
+$getReservedSeat([14, 'D']);  // 'Seat allocation is invalid'
+```
+
+## Array Pattern
+
+Using the basic syntax of the [List Pattern](#list-pattern) along with the `key()` helper function, you can also match associative elements in arrays. Note that use of `key()` within the array will turn a list pattern into an array pattern. A vital difference is that a list pattern is exhaustive and won't match if elements are left unmatched. However with an array pattern, unmatched elements are ignored.
+
+```php
+// try removing key => val pairs from the input and see the effect on output
+match(['dog' => 'cat', 'cat' => 'mouse', 'mouse' => 'cheese'], [
+	when('prey' => key('cat')->_)
+		=> fn($prey) => "cat chases $prey",
+	when(key()->hunter ('cat'))
+		=> fn($hunter) => "cat gets chased by $hunter",
+	when(key('mouse')) => 'a mouse scuttles around',
+]);
+```
+
+The single argument of `key()` is an exact key name or pattern to match. Follow `key()` with `->keyBindName` to bind the key to a parameter, and follow that with `(value-pattern-args...)` to set a pattern for the value.
 
 ## Regex Pattern
 
-The pattern parser identifies strings starting and ending with a `/` character (the end `/` character may also be followed by valid PCRE flags). These are automatically used to match and validate strings against the given regex. Any named captures are passed to functions where the parameter names match. Unnamed captures are passed in-order to the remaining parameters.
+The pattern parser identifies strings starting and ending with a `/` character (the end `/` character may also be followed by valid PCRE flags). These are automatically used to match and validate strings against the given regex. Any named captures are passed to functions where the parameter names match, essentially destructuring the string. Unnamed captures are passed as an array to the first other parameter.
 
 ```php
 $checkIpDigit = fn($digit) => $digit >= 0 && $digit <= 255;
-$ipValidatorPattern = pattern()
-	('/\A(?P<ip1>\d{1,3})\.(?P<ip2>\d{1,3})\.(?P<ip3>\d{1,3})\.(?P<ip4>\d{1,3})\z/')
-	  ->if(fn($ip1, $ip2, $ip3, $ip4) => $checkIpDigit($ip1) &&
-	                                     $checkIpDigit($ip2) &&
-	                                     $checkIpDigit($ip3) &&
-	                                     $checkIpDigit($ip4))
-	  ->v(true)
-	()->v(false)
-;
-match('abc', $ipValidatorPattern);              // returns: false
-match('255.255.255.256', $ipValidatorPattern);  // returns: false
-match('1.22.255.123', $ipValidatorPattern)      // returns: true
+$ipValidator = fn($ip) => match($ip, [
+	'/\A(?P<ip1>\d{1,3})\.(?P<ip2>\d{1,3})\.(?P<ip3>\d{1,3})\.(?P<ip4>\d{1,3})\z/' => [
+		when(fn($ip1, $ip2, $ip3, $ip4) => $checkIpDigit($ip1)
+			&& $checkIpDigit($ip2)
+			&& $checkIpDigit($ip3)
+			&& $checkIpDigit($ip4)
+		) => true
+	]
+	_ => false
+]);
+$ipValidator('abc');              // returns: false
+$ipValidator('255.255.255.256');  // returns: false
+$ipValidator('1.22.255.123')      // returns: true
 ```
