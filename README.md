@@ -4,20 +4,20 @@ Encase Pattern Matching Library
 
 - [Encase Pattern Matching Library](#encase-pattern-matching-library)
 - [Overview](#overview)
-	- [Syntax](#syntax)
-		- [Matcher Syntax](#matcher-syntax)
-		- [Case Conditions](#case-conditions)
-		- [Case Results](#case-results)
-		- [Match Guarding](#match-guarding)
-	- [Pattern Overview](#pattern-overview)
+  - [Syntax](#syntax)
+    - [Matcher Syntax](#matcher-syntax)
+    - [Case Conditions](#case-conditions)
+    - [Case Results](#case-results)
+    - [Match Guarding](#match-guarding)
+  - [Pattern Overview](#pattern-overview)
 - [Patterns](#patterns)
-	- [Constant Pattern](#constant-pattern)
-	- [Type Pattern](#type-pattern)
-	- [Wildcard Pattern](#wildcard-pattern)
-	- [Binding Pattern](#binding-pattern)
-	- [List Pattern](#list-pattern)
-	- [Array Pattern](#array-pattern)
-	- [Regex Pattern](#regex-pattern)
+  - [Constant Pattern](#constant-pattern)
+  - [Type Pattern](#type-pattern)
+  - [Wildcard Pattern](#wildcard-pattern)
+  - [Binding Pattern](#binding-pattern)
+  - [List Pattern](#list-pattern)
+  - [Array Pattern](#array-pattern)
+  - [Regex Pattern](#regex-pattern)
   
 # Overview
 
@@ -25,12 +25,12 @@ Pattern Matching is a popular tool which has been increasingly implemented in ma
 
 ```php
 $result = match(3, [
-	0 => 'zero',
-	when(Type::int()) => [
-		when(fn($n) => $n % 2 !== 0) => 'odd',
-		when(fn($n) => $n % 2 === 0) => 'even',
-	],
-	_ => 'not a number!'
+    0 => 'zero',
+    when(Type::int()) => [
+        when(fn($n) => $n % 2 !== 0) => 'odd',
+        when(fn($n) => $n % 2 === 0) => 'even',
+    ],
+    _ => 'not a number!'
 ]); // odd
 ```
 
@@ -42,10 +42,10 @@ Two free standing functions exist for building and matching patterns: `match()` 
 
 ```php
 $matcher = match(3, [
-	when(1, 2, 3) => 'one, two or three',
-	when(4) => 'four',
-	5 => 'five',
-	_ => 'something else',
+    when(1, 2, 3) => 'one, two or three',
+    when(4) => 'four',
+    5 => 'five',
+    _ => 'something else',
 ]);
 ```
 
@@ -55,12 +55,12 @@ A call to `pattern()` returns a MatcherBuilder object, allowing a unique syntax 
 
 ```php
 // matcher-syntax
-	match(/* var */, /* match-array */);
+    match(/* var */, /* match-array */);
 // match-array
-	[/* match-case[, match-case...] */]
+    [/* match-case[, match-case...] */]
 // match-case:
-	/* pattern-arg */ => /* case-result */
-	when(/* pattern-arg[, pattern-arg...] */) => /* case-result */
+    /* pattern-arg */ => /* case-result */
+    when(/* pattern-arg[, pattern-arg...] */) => /* case-result */
 // case-result: value|function|match-array
 ```
 
@@ -79,12 +79,12 @@ Note that single string arguments which match names of parameters in related clo
 
 ```php
 $result = match((object)['x' => 10, 'y'], [
-	when(['x', val('y')]) => [
-		when(fn($x) => $x > 100) => 'x is out of bounds',
-		when(fn($obj, $y = 0) => $y > 100) => 'y is out of bounds',
-	],
-	when(['x', 'y']) => fn($x) => "x = $x",
-	_ => 'error',
+    when(['x', val('y')]) => [
+        when(fn($x) => $x > 100) => 'x is out of bounds',
+        when(fn($obj, $y = 0) => $y > 100) => 'y is out of bounds',
+    ],
+    when(['x', 'y']) => fn($x) => "x = $x",
+    _ => 'error',
 ]); // result: x = 10
 ```
 
@@ -108,18 +108,18 @@ Match guarding can be performed with no real additional syntax. Match guarding c
 
 ```php
 echo match($i, [
-	when(Type::int()) => [
-		when(fn($n) => $n <= 0) => '',
-		when(fn($n) => $n % 3 == 0) => [
-			when(fn($n) => $n % 15 == 0) => fn() => 'fizzbuzz',
-			when(fn($n) => $n % 5 == 0) => 'fizz',
-			_ => 'buzz',
-		],
-		_ => fn($n) => $n,
-	],
-	_ => function() {
-		throw new RuntimeException('input was not an int');
-	}
+    when(Type::int()) => [
+        when(fn($n) => $n <= 0) => '',
+        when(fn($n) => $n % 3 == 0) => [
+            when(fn($n) => $n % 15 == 0) => fn() => 'fizzbuzz',
+            when(fn($n) => $n % 5 == 0) => 'fizz',
+            _ => 'buzz',
+        ],
+        _ => fn($n) => $n,
+    ],
+    _ => function() {
+        throw new RuntimeException('input was not an int');
+    }
 ]);
 echo "\n";
 ```
@@ -146,10 +146,10 @@ The following table lists the types of patterns supported by this library and th
 
 ```php
 match('hello' [
-	1 => 'one',
-	3.14 => 'pi',
-	when(val($var)) => '$var',
-	'hello' => fn($v) => $v.' world',
+    1 => 'one',
+    3.14 => 'pi',
+    when(val($var)) => '$var',
+    'hello' => fn($v) => $v.' world',
 )); // result: 'hello world'
 ```
 
@@ -161,13 +161,13 @@ Values can be matched based on their type using the `Encase\Functional\Type` cla
 use Encase\Functional\Type;
 
 $pattern = fn($val) => match($val, [
-	when(Type::null()) => 'null found',
-	when(Type::int()) => 'int found',
-	when(Type::float()) => 'float found',
-	when(Type::string()) => 'string found',
-	when(Type::object(\stdClass::class)) => 'stdClass object found',
-	when(Type::object()) => 'object found',
-	when(Type::class, []) => 'Type object found'.
+    when(Type::null()) => 'null found',
+    when(Type::int()) => 'int found',
+    when(Type::float()) => 'float found',
+    when(Type::string()) => 'string found',
+    when(Type::object(\stdClass::class)) => 'stdClass object found',
+    when(Type::object()) => 'object found',
+    when(Type::class, []) => 'Type object found'.
 ]);
 $pattern(42); // result: int found
 $pattern((object)['a' => 'stdClass']); // result: 'stdClass object found'
@@ -183,10 +183,10 @@ Wildcards can be used with the `\Encase\Matching\Support\_` constant or `'_'`. A
 use Encase\Matching\Support\_;
 
 match(['a', 12], [
-	when([]) => '0 items',
-	when([_]) => '1 item',
-	when([_, _]) => '2 items',
-	when([_, _, _]) => '3 items',
+    when([]) => '0 items',
+    when([_]) => '1 item',
+    when([_, _]) => '2 items',
+    when([_, _, _]) => '3 items',
 ]); // result: 2 items
 ```
 
@@ -196,11 +196,11 @@ Arguments can be bound and used in results, sub-case conditions and sub-case res
 
 ```php
 $getParity = fn($val) => match($val, [
-	when(Type::int()) => [
-		when(fn($v) => $v % 2 == 0) => 'even',
-		_ => 'odd',
-	]
-	'n' => fn($n) => "$n is not an integer",
+    when(Type::int()) => [
+        when(fn($v) => $v % 2 == 0) => 'even',
+        _ => 'odd',
+    ]
+    'n' => fn($n) => "$n is not an integer",
 ]);
 
 $getParity(5);      // result: 'odd'
@@ -214,13 +214,13 @@ Arguments within `when([...])` will match lists of values (ordered array values)
 
 ```php
 $getTicTacToeRowResult = fn($list) => match($list, [
-	when(['x', 'y', 'z']) => [
-		when(fn($x, $y, $z) => $x == $y && $y == $z) => [
-			when(fn($x) => $x == 'x') => 'crosses wins!',
-			when(fn($x) => $x == 'o') => 'naughts wins!',
-		],
-	],
-	when(['x', 'o', 'x']) => fn($xox) => \implode(',', $xox).'!'
+    when(['x', 'y', 'z']) => [
+        when(fn($x, $y, $z) => $x == $y && $y == $z) => [
+            when(fn($x) => $x == 'x') => 'crosses wins!',
+            when(fn($x) => $x == 'o') => 'naughts wins!',
+        ],
+    ],
+    when(['x', 'o', 'x']) => fn($xox) => \implode(',', $xox).'!'
 ]);
 $getTicTacToeRowResult(['o', 'o', 'o']); // naughts wins!
 $getTicTacToeRowResult(['x', 'o', 'x']); // x,o,x!
@@ -230,16 +230,16 @@ Within a list pattern, you can match the "remaining" arguments with `'*'`, or fo
 
 ```php
 $getPalindromeType = function($list) use (&$isPalindrome) {
-	return match($list, [
-		when(['h', '*m', 't']) => [
-			when(fn($h, $t) => $h === $t) => fn($m) => $getPalindromeType($m),
-		],
-		when(['head', 'tail']) => [
-			when(fn($head, $tail) => $head === $tail) => 'even',
-		],
-		when([_]) => 'odd',
-		_ => false,
-	]);
+    return match($list, [
+        when(['h', '*m', 't']) => [
+            when(fn($h, $t) => $h === $t) => fn($m) => $getPalindromeType($m),
+        ],
+        when(['head', 'tail']) => [
+            when(fn($head, $tail) => $head === $tail) => 'even',
+        ],
+        when([_]) => 'odd',
+        _ => false,
+    ]);
 };
 ```
 
@@ -247,9 +247,9 @@ To match a value by pattern, yet also bind it, use `'paramName' => pattern...`.
 
 ```php
 $getReservedSeat = fn($seat) => match($seat, [
-	when(['row' => Type::int(), 'seat' => '/\A[A-C]\z/'])
-		=> fn($row, $seat) => "You are seated at $row-$seat",
-	_ => 'Seat allocation is invalid',
+    when(['row' => Type::int(), 'seat' => '/\A[A-C]\z/'])
+        => fn($row, $seat) => "You are seated at $row-$seat",
+    _ => 'Seat allocation is invalid',
 ]);
 $getReservedSeat([22, 'B']);  // 'You are seated at 22-B'
 $getReservedSeat([16, 'C']);  // 'You are seated at 16-C'
@@ -263,11 +263,11 @@ Using the basic syntax of the [List Pattern](#list-pattern) along with the `key(
 ```php
 // try removing key => val pairs from the input and see the effect on output
 match(['dog' => 'cat', 'cat' => 'mouse', 'mouse' => 'cheese'], [
-	when('prey' => key('cat')->_)
-		=> fn($prey) => "cat chases $prey",
-	when(key()->hunter ('cat'))
-		=> fn($hunter) => "cat gets chased by $hunter",
-	when(key('mouse')) => 'a mouse scuttles around',
+    when('prey' => key('cat')->_)
+        => fn($prey) => "cat chases $prey",
+    when(key()->hunter ('cat'))
+        => fn($hunter) => "cat gets chased by $hunter",
+    when(key('mouse')) => 'a mouse scuttles around',
 ]);
 ```
 
@@ -280,14 +280,14 @@ The pattern parser identifies strings starting and ending with a `/` character (
 ```php
 $checkIpDigit = fn($digit) => $digit >= 0 && $digit <= 255;
 $ipValidator = fn($ip) => match($ip, [
-	'/\A(?P<ip1>\d{1,3})\.(?P<ip2>\d{1,3})\.(?P<ip3>\d{1,3})\.(?P<ip4>\d{1,3})\z/' => [
-		when(fn($ip1, $ip2, $ip3, $ip4) => $checkIpDigit($ip1)
-			&& $checkIpDigit($ip2)
-			&& $checkIpDigit($ip3)
-			&& $checkIpDigit($ip4)
-		) => true
-	]
-	_ => false
+    '/\A(?P<ip1>\d{1,3})\.(?P<ip2>\d{1,3})\.(?P<ip3>\d{1,3})\.(?P<ip4>\d{1,3})\z/' => [
+        when(fn($ip1, $ip2, $ip3, $ip4) => $checkIpDigit($ip1)
+            && $checkIpDigit($ip2)
+            && $checkIpDigit($ip3)
+            && $checkIpDigit($ip4)
+        ) => true
+    ]
+    _ => false
 ]);
 $ipValidator('abc');              // returns: false
 $ipValidator('255.255.255.256');  // returns: false
