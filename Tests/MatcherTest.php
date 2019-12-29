@@ -2,10 +2,12 @@
 // phpcs:disable
 namespace Encase\Matching\Tests;
 
+use RuntimeException;
 use Encase\Functional\Type;
 use const Encase\Matching\Support\_;
 use function Encase\Functional\split;
 use function Encase\Matching\Support\key;
+use function Encase\Matching\Support\val;
 use function Encase\Matching\Support\when;
 use function Encase\Matching\Support\match;
 
@@ -79,6 +81,97 @@ class MatcherTest extends TestCase
 			'n' => fn($n) => "Got $n",
 		]);
 		$this->assertSame("Got $number", $result);
+	}
+
+	public function testExampleMatchWithBind()
+	{
+		$result = match(3, [
+			0 => 'zero',
+			when(Type::int()) => [
+				when(fn($n) => $n % 2 !== 0) => 'odd',
+				when(fn($n) => $n % 2 === 0) => 'even'
+			],
+			_ => 'not a number!',
+		]);
+		$this->assertSame('odd', $result);
+	}
+
+	public function testFizzBuzzExample()
+	{
+		$result = '';
+		for ($i = 0; $i < 31; ++$i) {
+			if ($result) {
+				$result .= ' ';
+			}
+
+			$result .= match($i, [
+				when(Type::int()) => [
+					when(fn($n) => $n % 3 == 0) => [
+						when(fn($n) => $n % 15 == 0) => fn() => 'fizzbuzz',
+						when(fn($n) => $n % 5 == 0) => 'fizz',
+						_ => 'buzz',
+					],
+					_ => fn($n) => $n,
+				],
+				_ => function() {
+					throw new RuntimeException('input was not an int');
+				}
+			]);
+		}
+		$this->assertSame(
+			'fizzbuzz 1 2 buzz 4 5 buzz 7 8 buzz 10 11 buzz 13 14 fizzbuzz 16 17 buzz 19 20 buzz 22 23 buzz 25 26 buzz 28 29 fizzbuzz',
+			$result
+		);
+	}
+
+	public function testBindAvoidanceExample()
+	{
+		$result = [];
+		$objects = [
+			(object)['x' => 10, 'y'],
+			(object)['x' => 101, 'z'],
+			(object)['x' => 101, 'y'],
+		];
+		foreach ($objects as $object) {
+			$result[] = match($object, [
+				when(['x', val('y')]) => [
+					when(fn($x) => $x > 100) => 'x is out of bounds',
+					when(fn($obj, $y = 0) => $y > 100) => 'y is out of bounds',
+				],
+				when(['x', 'y']) => fn($x) => "x = $x",
+				_ => 'error',
+			]);
+		}
+		$this->assertSame(['x = 10', 'error', 'x is out of bounds'], $result);
+	}
+
+	public function testListElementCountExample()
+	{
+		$list = [];
+		$results = [];
+
+		for ($list = []; \count($list) < 4; $list[] = \count($list) + 1) {
+			$results[] = match($list, [
+				when([]) => '0 items',
+				when([_]) => '1 item',
+				when([_, _]) => '2 items',
+				when([_, _, _]) => '3 items',
+			]); // result: 2 items
+		}
+
+		$this->assertSame(['0 items', '1 item', '2 items', '3 items'], $results);
+	}
+
+	public function testSeatReservationExample()
+	{
+		$getReservedSeat = fn($seat) => match($seat, [
+			when(['row', 'seat' => '/\A[A-C]\z/'])
+				=> fn($row, $seat) => "You are seated at $row-$seat",
+			_ => 'Seat allocation is invalid',
+		]);
+		$this->assertSame('You are seated at 22-B', $getReservedSeat([22, 'B']));
+		$this->assertSame('You are seated at 16-C', $getReservedSeat([16, 'C']));
+		$this->assertSame('Seat allocation is invalid', $getReservedSeat([14, 'D']));
 	}
 
 	/** @dataProvider casesNumbers */
@@ -207,13 +300,12 @@ class MatcherTest extends TestCase
 			return match($list, [
 				when(['h', '*m', 't']) => [
 					when(fn($h, $t) => $h === $t) => fn($m) => $isPalindrome($m),
-					_ => false,
 				],
 				when(['h', 't']) => [
 					when(fn($h, $t) => $h === $t) => 'even',
-					_ => false,
 				],
 				when([_]) => 'odd',
+				_ => false,
 			]);
 		};
 
