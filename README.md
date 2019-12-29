@@ -51,8 +51,6 @@ $matcher = match(3, [
 
 ### Matcher Syntax
 
-A call to `pattern()` returns a MatcherBuilder object, allowing a unique syntax for building a pattern matcher.
-
 ```php
 // matcher-syntax
     match(/* var */, /* match-array */);
