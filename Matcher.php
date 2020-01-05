@@ -30,8 +30,8 @@ class Matcher implements CaseResultable, Matchable
 			throw new PatternException('Matcher must have at least one case.');
 		}
 
-		foreach ($cases as $patternKey => $result) {
-			$caseResult = (function () use ($result) {
+		foreach ($cases as $patternKey => &$result) {
+			$caseResult = (function () use (&$result) {
 				if ($result instanceof Closure) {
 					return new CaseCall($result);
 				} elseif (\is_array($result)) {
@@ -41,6 +41,7 @@ class Matcher implements CaseResultable, Matchable
 			})();
 
 			$this->cases[] = new MatchCase(
+				$this,
 				WhenRepository::get($patternKey) ?? $patternKey,
 				$caseResult
 			);
@@ -67,7 +68,7 @@ class Matcher implements CaseResultable, Matchable
 	 * @throws \Encase\Matching\Exceptions\MatchException
 	 *         Thrown if no case matched the argument.
 	 */
-	public function match($arg, array $captures = [])
+	public function match($arg, array $captures = ['@' => []])
 	{
 		foreach ($this->cases as $case) {
 			$result = $case->match($arg, $captures);
@@ -87,17 +88,6 @@ class Matcher implements CaseResultable, Matchable
 		throw new MatchException('No cases matched the argument.');
 	}
 
-	/**
-	 * @inheritDoc
-	 */
-	public function getValue(Matcher $matcher, array $captures, $value)
-	{
-		return $this->match($value, $captures);
-	}
-
-	/**
-	 * @inheritDoc
-	 */
 	public function getBindNames(): array
 	{
 		$this->bindNameCache ??= accumulate(
@@ -108,35 +98,25 @@ class Matcher implements CaseResultable, Matchable
 		return $this->bindNameCache;
 	}
 
-	public static function mapCapturesToArgs($paramArgMap, $captures)
+	public function getValue(Matcher $matcher, array $captures, $value)
 	{
-		return map($paramArgMap, function ($parameter) use ($captures) {
-			return $captures[$parameter];
-		});
+		return $this->match($value, $captures);
 	}
 
-	protected static function checkConditions(&$conditions, $captures)
+	/**
+	 * Use the map of params to capture names to build an argument list.
+	 *
+	 * @param  string[] $paramArgMap
+	 * @param  mixed $value
+	 * @param  array $captures
+	 * @return array
+	 */
+	public static function mapCapturesToArgs($paramArgMap, $value, $captures)
 	{
-		return each($conditions, function (&$condition) use ($captures) {
-			if (!\is_array($condition)) {
-				$condition = [
-					self::getParamArgMappingForCall(
-						$condition,
-						$captures
-					),
-					$condition
-				];
-			}
-
-			$args = self::mapCapturesToArgs(
-				$condition[0],
-				$captures
-			);
-
-			if (!$condition[1](...$args)) {
-				return false;
-			}
+		$args = map($paramArgMap, function ($param) use ($captures) {
+			return $captures[$param['bindName']];
 		});
+		return empty($args) ? [$value] : $args;
 	}
 
 	/**
@@ -152,8 +132,14 @@ class Matcher implements CaseResultable, Matchable
 		each(
 			$bindNames,
 			function ($bindName) use ($captures, &$params, &$i) {
+				if (empty($bindName)) {
+					return;
+				}
+
 				if (isset($captures[$bindName])) {
-					$params[] = $bindName;
+					$params[] = [
+						'bindName' => $bindName
+					];
 					return;
 				}
 
@@ -161,7 +147,9 @@ class Matcher implements CaseResultable, Matchable
 					return false;
 				}
 
-				$params[] = $i++;
+				$params[] = [
+					'bindName' => $i++
+				];
 			}
 		);
 		return $params;

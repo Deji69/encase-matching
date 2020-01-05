@@ -2,6 +2,7 @@
 namespace Encase\Matching\Support;
 
 use Encase\Matching\When;
+use Encase\Matching\WhenBinder;
 use Encase\Matching\WhenRepository;
 
 /**
@@ -11,5 +12,8 @@ use Encase\Matching\WhenRepository;
  */
 function when(...$args)
 {
+	if (empty($args)) {
+		return new WhenBinder();
+	}
 	return WhenRepository::add(new When($args));
 }

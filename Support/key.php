@@ -1,15 +1,17 @@
 <?php
 namespace Encase\Matching\Support;
 
-use Encase\Matching\KeyBinder;
+use Encase\Matching\Key;
+use Encase\Matching\KeyRepository;
 
 /**
  * Create a bindable key pattern.
  *
  * @param  array $args
- * @return KeyBinder
+ * @return string Unique object ID for the key.
  */
 function key(...$args)
 {
-	return new KeyBinder($args);
+	$key = new Key($args);
+	return KeyRepository::add($key);
 }

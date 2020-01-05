@@ -3,9 +3,13 @@
 namespace Encase\Matching\Tests;
 
 use RuntimeException;
+use Encase\Matching\At;
+use Encase\Matching\Key;
 use Encase\Functional\Type;
 use const Encase\Matching\Support\_;
 use function Encase\Functional\split;
+use function Encase\Matching\Support\at;
+use function Encase\Matching\Support\any;
 use function Encase\Matching\Support\key;
 use function Encase\Matching\Support\val;
 use function Encase\Matching\Support\when;
@@ -85,41 +89,69 @@ class MatcherTest extends TestCase
 
 	public function testExampleMatchWithBind()
 	{
-		$result = match(3, [
-			0 => 'zero',
-			when(Type::int()) => [
-				when(fn($n) => $n % 2 !== 0) => 'odd',
-				when(fn($n) => $n % 2 === 0) => 'even'
-			],
-			_ => 'not a number!',
-		]);
-		$this->assertSame('odd', $result);
+		$result = [];
+		$inputs = [0, 1, 2, 3, false, '2', '0'];
+
+		foreach ($inputs as $input) {
+			$result[] = match($input, [
+				0 => 'zero',
+				when(Type::int()) => [
+					when(fn($n) => $n % 2 !== 0) => 'odd',
+					when(fn($n) => $n % 2 === 0) => 'even'
+				],
+				_ => 'NaN',
+			]);
+		}
+		$this->assertSame('zero,odd,even,odd,NaN,NaN,NaN', \implode(',', $result));
 	}
 
 	public function testFizzBuzzExample()
 	{
-		$result = '';
-		for ($i = 0; $i < 31; ++$i) {
-			if ($result) {
-				$result .= ' ';
-			}
+		$result = [];
 
-			$result .= match($i, [
+		for ($i = 0; $i < 31; ++$i) {
+			$result[] = match($i, [
 				when(Type::int()) => [
+					when(fn($n) => $n <= 0) => '<=0',
 					when(fn($n) => $n % 3 == 0) => [
-						when(fn($n) => $n % 15 == 0) => fn() => 'fizzbuzz',
-						when(fn($n) => $n % 5 == 0) => 'fizz',
-						_ => 'buzz',
+						when(fn($n) => $n % 5 == 0) => 'Fizz Buzz',
+						_ => 'Fizz'
 					],
-					_ => fn($n) => $n,
+					when(fn($n) => $n % 5 == 0) => 'Buzz',
+					_ => $i,
 				],
 				_ => function() {
 					throw new RuntimeException('input was not an int');
 				}
 			]);
 		}
+
 		$this->assertSame(
-			'fizzbuzz 1 2 buzz 4 5 buzz 7 8 buzz 10 11 buzz 13 14 fizzbuzz 16 17 buzz 19 20 buzz 22 23 buzz 25 26 buzz 28 29 fizzbuzz',
+			'<=0, 1, 2, Fizz, 4, Buzz, Fizz, 7, 8, Fizz, Buzz, 11, Fizz, 13, 14, Fizz Buzz, '
+			.'16, 17, Fizz, 19, Buzz, Fizz, 22, 23, Fizz, Buzz, 26, Fizz, 28, 29, Fizz Buzz',
+			\implode(', ', $result)
+		);
+	}
+
+	public function testFizzBuzzBetterExample()
+	{
+		$result = '';
+
+		for ($i = 1; $i < 31; ++$i) {
+			if ($result) {
+				$result .= ' ';
+			}
+
+			$result .= match($i, [
+				when(fn($n) => $n % 15 == 0) => 'fizzbuzz',
+				when(fn($n) => $n % 5 == 0) => 'buzz',
+				when(fn($n) => $n % 3 == 0) => 'fizz',
+				_ => $i
+			]);
+		}
+
+		$this->assertSame(
+			'1 2 fizz 4 buzz fizz 7 8 fizz buzz 11 fizz 13 14 fizzbuzz 16 17 fizz 19 buzz fizz 22 23 fizz buzz 26 fizz 28 29 fizzbuzz',
 			$result
 		);
 	}
@@ -131,6 +163,7 @@ class MatcherTest extends TestCase
 			(object)['x' => 10, 'y'],
 			(object)['x' => 101, 'z'],
 			(object)['x' => 101, 'y'],
+			(object)['x' => 'z', 'y'],
 		];
 		foreach ($objects as $object) {
 			$result[] = match($object, [
@@ -138,11 +171,12 @@ class MatcherTest extends TestCase
 					when(fn($x) => $x > 100) => 'x is out of bounds',
 					when(fn($obj, $y = 0) => $y > 100) => 'y is out of bounds',
 				],
+				when((object)['x' => val('z')]) => fn($x) => 'x is z',
 				when(['x', 'y']) => fn($x) => "x = $x",
 				_ => 'error',
 			]);
 		}
-		$this->assertSame(['x = 10', 'error', 'x is out of bounds'], $result);
+		$this->assertSame(['x = 10', 'error', 'x is out of bounds', 'x is z'], $result);
 	}
 
 	public function testListElementCountExample()
@@ -172,6 +206,86 @@ class MatcherTest extends TestCase
 		$this->assertSame('You are seated at 22-B', $getReservedSeat([22, 'B']));
 		$this->assertSame('You are seated at 16-C', $getReservedSeat([16, 'C']));
 		$this->assertSame('Seat allocation is invalid', $getReservedSeat([14, 'D']));
+	}
+
+	public function testScopelessDestructureForValueReselt()
+	{
+		$value = (object)['x' => (object)['y' => (object)['z' => 'bingo']]];
+		$result = match($value, [
+			when($a = at()->x->y) => $a->z,
+		]);
+		$this->assertSame('bingo', $result);
+	}
+
+	public function testScopelessDestructureForClosureResult()
+	{
+		$value = (object)['x' => (object)['y' => (object)['z' => 'bingo']]];
+		$result = match($value, [
+			when($a = at()->x->y) => fn() => $a->z,
+		]);
+		$this->assertSame('bingo', $result);
+	}
+
+	public function testScopelessDestructureForWhen()
+	{
+		$value = (object)['x' => (object)['y' => (object)['z' => 'foo']]];
+		$result = match($value, [
+			when($a = at::a()->x->y, fn($a) => $a->z === 'foo') => $a->z,
+		]);
+		$this->assertSame('foo', $result);
+	}
+
+	public function testScopelessDestructureForSubCase()
+	{
+		$value = (object)['x' => (object)['y' => (object)['z' => 'foo']]];
+		$result = match($value, [
+			when($a = at::a()->x->y, fn($a) => $a->z === 'foo') => [
+				when(fn($a) => $a->z === 'foo') => $a->z,
+			]
+		]);
+		$this->assertSame('foo', $result);
+	}
+
+	public function testScopelessDestructureArray()
+	{
+		$value = ['x' => ['y' => ['z' => 'foo']]];
+		$result = match($value, [
+			when($a = at::a()['x']['y'], fn($a) => $a['z'] === 'foo') => [
+				when(fn($a) => $a['z'] === 'foo') => $a['z']
+			]
+		]);
+		$this->assertSame('foo', $result);
+	}
+
+	public function testBindAsIdentifier()
+	{
+		$values = [
+			['no x/y', (object)['x' => null]],
+			['no x/y', ['y' => null]],
+			['x missed', (object)['x' => 2, 'y' => 5]],
+			['x missed', ['x' => 4, 'y' => 5]],
+			['y missed', (object)['x' => 3, 'y' => 8]],
+			['y missed', ['x' => 3, 'y' => 4]],
+			['hit', (object)['x' => 3, 'y' => 5]],
+			['hit', ['x' => 3, 'y' => 5]],
+		];
+
+		foreach ($values as $data) {
+			$expect = $data[0];
+			$value = $data[1];
+
+			$result = match($value, [
+				when(at::a()->x, at::b()->y) => [
+					when(fn($a) => $a == 3) => [
+						when(fn($b) => $b == 5) => 'hit',
+						_ => 'y missed',
+					],
+					_ => 'x missed',
+				],
+				_ => 'no x/y',
+			]);
+			$this->assertSame($expect, $result);
+		}
 	}
 
 	/** @dataProvider casesNumbers */
@@ -220,12 +334,12 @@ class MatcherTest extends TestCase
 
 		$result = match($map, [
 			when([
-				key('Job') -> _ ('P.I.'),
-				key(_) -> ageKey (42, 66),
-				'name' => key('Name') -> _ ('Frank'),
-				'abc' => key(Type::int()) -> abcKey,
+				'Job' => 'P.I.',
+				key ('Name') => at::name('Frank'),
+				key::ageKey () => any(42, 66),
+				key::abcKey (Type::int()) => 'abc',
 			]) => fn($name, $abc, $ageKey, $abcKey)
-				=> [$name, $abc, $ageKey, $abcKey],
+			=> [$name, $abc, $ageKey, $abcKey],
 		]);
 
 		$this->assertSame(['Frank', 'abc', 'Age', 5], $result);
@@ -262,6 +376,21 @@ class MatcherTest extends TestCase
 		$rect = (object)['x' => 5, 'y' => 10];
 		$pattern = [
 			when((object)['x', 'y']) => [
+				when(fn($x, $y) => $x === $y) => 'Square',
+				_ => 'Rectangle',
+			],
+			_ => 'Not a shape!',
+		];
+		$this->assertSame('Square', match($square, $pattern));
+		$this->assertSame('Rectangle', match($rect, $pattern));
+	}
+
+	public function testMatchGuardAltSyntax()
+	{
+		$square = (object)['x' => 5, 'y' => 5];
+		$rect = (object)['x' => 5, 'y' => 10];
+		$pattern = [
+			when(at()->x, at()->y) => [
 				when(fn($x, $y) => $x === $y) => 'Square',
 				_ => 'Rectangle',
 			],
@@ -337,11 +466,24 @@ class MatcherTest extends TestCase
 
 	public function testMatchAny()
 	{
-		$pattern = fn($n) => match($n, [when(1, 2, 3) => 'a', _ => 'b']);
+		$pattern = fn($n) => match($n, [
+			when(1, 2, 3) => 'a',
+			_ => 'b',
+		]);
 		$this->assertSame('a', $pattern(1));
 		$this->assertSame('a', $pattern(2));
 		$this->assertSame('a', $pattern(3));
 		$this->assertSame('b', $pattern(4));
+	}
+
+	public function testMatchAll()
+	{
+		$pattern = fn($n) => match($n, [
+			when(Type::int(), fn() => $n < 5) => 'int under 5',
+			when(fn($n) => $n > 0, fn() => $n < 5) => '0-5',
+		]);
+		$this->assertSame('int under 5', $pattern(2));
+		$this->assertSame('0-5', $pattern('2'));
 	}
 
 	public function testMatchArrayExact()
@@ -410,4 +552,8 @@ class MatcherTest_Point
 		$this->x = $x;
 		$this->y = $y;
 	}
+}
+
+class MatcherTest_Shape
+{
 }

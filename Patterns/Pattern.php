@@ -31,6 +31,12 @@ abstract class Pattern implements Matchable, MatchBindable
 		$this->bindName = !empty($bindName) ? $bindName : null;
 	}
 
+	public function __get(string $bindName)
+	{
+		$this->setBindName($bindName);
+		return $this;
+	}
+
 	/**
 	 * @inheritDoc
 	 */

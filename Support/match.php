@@ -10,8 +10,13 @@ use Encase\Matching\Matcher;
  * @param  array $cases `When` cases to match against.
  * @return mixed Result of matched case.
  */
-function match($value, $cases)
+function match($value, $cases = null)
 {
+	if (\func_num_args() === 1) {
+		$matcher = new Matcher($value);
+		return $matcher;
+	}
+
 	$matcher = new Matcher($cases);
 	return $matcher->match($value);
 }

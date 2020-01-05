@@ -1,7 +1,12 @@
 <?php
 namespace Encase\Matching;
 
+use Encase\Matching\Exceptions\MatchException;
 use Encase\Matching\Patternable;
+use Encase\Matching\Patterns\CallbackPattern;
+use Encase\Matching\Patterns\DestructurePattern;
+
+use function Encase\Functional\slice;
 use function Encase\Functional\union;
 
 class MatchCase
@@ -11,6 +16,9 @@ class MatchCase
 
 	/** @var CaseResultable|array|null */
 	public $result = null;
+
+	/** @var Matcher */
+	protected $matcher;
 
 	/** @var array */
 	protected $argNames = [];
@@ -25,8 +33,9 @@ class MatchCase
 	 * @param Patternable|string $pattern
 	 * @param CaseResultable|array|null $result
 	 */
-	public function __construct($pattern, $result)
+	public function __construct(Matcher $matcher, $pattern, $result)
 	{
+		$this->matcher = $matcher;
 		$this->pattern = $pattern;
 		$this->result = $result;
 	}
@@ -40,7 +49,9 @@ class MatchCase
 	 */
 	public function match($value, array $captures = [])
 	{
-		return $this->getPattern()->match($value, $captures);
+		$pattern = $this->getPattern();
+		$result = $pattern->match($value, $captures);
+		return $result;
 	}
 
 	/**
@@ -82,11 +93,32 @@ class MatchCase
 				);
 			}
 
-			$args = Matcher::mapCapturesToArgs($this->resultCaptureMapCache, $captures);
-			return $this->result->getValue($matcher, $args, $value);
+			$args = Matcher::mapCapturesToArgs($this->resultCaptureMapCache, $value, $captures);
+			$result = $this->result->getValue($matcher, $args, $value);
+		} else {
+			$result = $this->result->getValue($matcher, $captures, $value);
 		}
 
-		return $this->result->getValue($matcher, $captures, $value);
+		if ($result instanceof Matcher) {
+			$result = $result->getValue($matcher, $captures, $value);
+		}
+
+		if ($result instanceof At) {
+			$val = $result->£var;
+			$count = $result->£destructureCallCount;
+
+			for ($i = $count; $i < \count($result->£calls); ++$i) {
+				$call = $result->£calls[$i];
+
+				if (!DestructurePattern::destructureCall($call[0], $call[1], $val)) {
+					$newAt = clone $result;
+					$newAt->£calls = slice($newAt->£calls, $result->£destructureCallCount);
+					throw new MatchException('Failed to destructure case result '.$newAt);
+				}
+			}
+			return $val;
+		}
+		return $result;
 	}
 
 	/**

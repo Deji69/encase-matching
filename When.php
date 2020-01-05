@@ -23,6 +23,12 @@ class When implements Patternable
 	 */
 	public function __construct(array $args)
 	{
+		foreach ($args as $arg) {
+			if ($arg instanceof At) {
+				$arg->£destructureCallCount = \count($arg->£calls);
+			}
+		}
+
 		$this->args = $args;
 	}
 

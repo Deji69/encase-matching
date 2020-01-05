@@ -12,5 +12,5 @@ use Encase\Matching\Patterns\ExactPattern;
  */
 function val(...$values)
 {
-	return PatternBuilder::buildArgs($values);
+	return PatternBuilder::buildArgs($values, [], true);
 }

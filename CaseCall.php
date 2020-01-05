@@ -42,12 +42,7 @@ class CaseCall implements CaseResultable
 	 */
 	public function getValue($matcher, $args, $value)
 	{
-		if (empty($args)) {
-			if ($this->callable->getNumberOfRequiredParameters() > 0) {
-				return ($this->callable)($value);
-			}
-		}
-		return ($this->callable)(...$args);
+		return $this->callFunction($args, $value);
 	}
 
 	/**
@@ -64,5 +59,15 @@ class CaseCall implements CaseResultable
 		}
 
 		return $this->bindNames;
+	}
+
+	protected function callFunction($args, $value)
+	{
+		if (empty($args)) {
+			if ($this->callable->getNumberOfRequiredParameters() > 0) {
+				return ($this->callable)($value);
+			}
+		}
+		return ($this->callable)(...$args);
 	}
 }

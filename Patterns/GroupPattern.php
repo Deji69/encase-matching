@@ -2,6 +2,7 @@
 namespace Encase\Matching\Patterns;
 
 use Encase\Matching\Matchable;
+use Encase\Matching\PatternBuilder;
 
 class GroupPattern extends Pattern
 {
@@ -22,7 +23,7 @@ class GroupPattern extends Pattern
 		$builtPatterns = [];
 
 		foreach ($patterns as $pattern) {
-			if (!$pattern instanceof Matchable) {
+			if (!\is_object($pattern)) {
 				$exactValues[] = $pattern;
 			} else {
 				if (!empty($exactValues)) {
@@ -62,30 +63,35 @@ class GroupPattern extends Pattern
 			}
 
 			$connect = function ($match) use (&$result) {
-				if ($match !== false) {
-					$result = $match;
-					return true;
-				}
-				return false;
+				$result = $match;
+				return $match !== false;
 			};
 		} else {
-			$connect = function ($match) use (&$result) {
-				if ($match !== false) {
-					if (\is_array($match)) {
-						if (\is_array($result)) {
-							$result = \array_merge($result, $match);
-						} else {
-							$result = $match;
-						}
+			$connect = function ($match) use (&$result, &$captures) {
+				if (\is_array($match)) {
+					if (\is_array($result)) {
+						$result = \array_merge($result, $match);
+					} else {
+						$result = $match;
 					}
+
+					$captures = \array_merge($captures, $result);
 				}
-				return false;
+				return $match !== false;
 			};
 		}
 
-		foreach ($this->patterns as $pattern) {
-			if ($connect($pattern->match($value))) {
-				return $result;
+		foreach ($this->patterns as &$pattern) {
+			if (!$pattern instanceof Matchable) {
+				$pattern = PatternBuilder::buildArg($pattern, $this->getBindNames());
+			}
+
+			if ($connect($pattern->match($value, $captures))) {
+				if ($this->connective === 'or') {
+					return $result;
+				}
+			} elseif ($this->connective === 'and') {
+				return false;
 			}
 		}
 
