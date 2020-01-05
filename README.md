@@ -13,11 +13,15 @@ Encase Pattern Matching Library
 - [Patterns](#patterns)
   - [Constant Pattern](#constant-pattern)
   - [Type Pattern](#type-pattern)
+  - [Any Pattern](#any-pattern)
   - [Wildcard Pattern](#wildcard-pattern)
   - [Binding Pattern](#binding-pattern)
   - [List Pattern](#list-pattern)
   - [Array Pattern](#array-pattern)
   - [Regex Pattern](#regex-pattern)
+- [Further Examples](#further-examples)
+  - [FizzBuzz](#fizzbuzz)
+  - [Factorial](#factorial)
   
 # Overview
 
@@ -109,11 +113,11 @@ echo match($i, [
     when(Type::int()) => [
         when(fn($n) => $n <= 0) => '',
         when(fn($n) => $n % 3 == 0) => [
-            when(fn($n) => $n % 15 == 0) => fn() => 'fizzbuzz',
-            when(fn($n) => $n % 5 == 0) => 'fizz',
-            _ => 'buzz',
-        ],
-        _ => fn($n) => $n,
+            when(fn($n) => $n % 5 == 0) => 'fizzbuzz',
+            _ => 'fizz'
+        ]
+        when(fn($n) => $n % 5 == 0) => 'buzz',
+        _ => $i,
     ],
     _ => function() {
         throw new RuntimeException('input was not an int');
@@ -132,6 +136,7 @@ The following table lists the types of patterns supported by this library and th
 | ---------------------- |----------------------- | ------------------------------- |
  [Constant Pattern](#constant-pattern) | Matches exact values | `"str"`, `3.5`, `5`, `$var`
  [Type Pattern](#type-pattern) | Matches values by type | `when(Type::int())`, `when(Type::object(MyClass::class))`, `when(MyClass::class, [])`
+ [Any Pattern](#any-pattern) | Matches if any value matches | `when(1, 2, 3)`, `when(1, 'one')`, `when(any(...))`
  [Wildcard Pattern](#wildcard-pattern) | Matches anything | `_` or `'_'`
  [Binding Pattern](#binding-pattern) | Matches on a pattern and captures the value | `'n'`, `'n' => ...`
  [List Pattern](#list-pattern) | Matches a list of elements | `when(['first', '*', 'last'])`
@@ -169,13 +174,26 @@ $pattern = fn($val) => match($val, [
 ]);
 $pattern(42); // result: int found
 $pattern((object)['a' => 'stdClass']); // result: 'stdClass object found'
-$pattern(new MyClass); // result: 'object found'
+$pattern(new MyClass); // result: 'object found'.
 $pattern(Type::int()); // result: 'Type object found'
 ```
 
+## Any Pattern
+
+Multiple [constant pattern](#constant-pattern)s make up a pattern group which matches if any one of the patterns, much like a logical OR operation.
+
+```php
+match('1,000', [
+    when(1, 2, 3) => '1, 2 or 3 (int)',
+    when('1,000', 1000) => 'one thousand',
+]); // one thousand
+```
+
+Note that if any one of the arguments is an array or object, the group instead matches *all* patterns. Use `Encase\Matching\Support\any()` to force an any pattern in these cases. Likewise, you can ensure an all pattern with `Encase\Matching\Support\all()`.
+
 ## Wildcard Pattern
 
-Wildcards can be used with the `\Encase\Matching\Support\_` constant or `'_'`. A `_` on its own is treated as equivalent to `'_'`. Wildcards ignore arguments and elements and do not bind to parameters. For binding, see [Binding Pattern](#binding-pattern).
+Wildcards can be used with the `Encase\Matching\Support\_` constant or `'_'`. A `_` on its own is treated as equivalent to `'_'`. Wildcards ignore arguments and elements and do not bind to parameters. For binding, see [Binding Pattern](#binding-pattern).
 
 ```php
 use Encase\Matching\Support\_;
@@ -206,9 +224,11 @@ $getParity(8);      // result: 'even'
 $getParity('foo');  // result: 'foo is not an integer'
 ```
 
+Note that the existence of the `$n` parameter itself makes `'n'` a bind name rather than a plain string. Use `Encase\Matching\Support\val()` instead for an exact value based match.
+
 ## List Pattern
 
-Arguments within `when([...])` will match lists of values (ordered array values), unless `key()` is used for one of them, in which case it becomes an [Array Pattern](#array-pattern).
+Arguments within `when([...])` will match lists of values (ordered array values), unless `Encase\Matching\Support\key()` is used for one of them, in which case it becomes an [Array Pattern](#array-pattern).
 
 ```php
 $getTicTacToeRowResult = fn($list) => match($list, [
@@ -256,20 +276,47 @@ $getReservedSeat([14, 'D']);  // 'Seat allocation is invalid'
 
 ## Array Pattern
 
-Using the basic syntax of the [List Pattern](#list-pattern) along with the `key()` helper function, you can also match associative elements in arrays. Note that use of `key()` within the array will turn a list pattern into an array pattern. A vital difference is that a list pattern is exhaustive and won't match if elements are left unmatched. However with an array pattern, unmatched elements are ignored.
+Using the basic syntax of the [List Pattern](#list-pattern) along with the `Encase\Matching\Support\key()` helper function, you can also match associative elements in arrays. Note that use of `key()` within the array will turn a list pattern into an array pattern. A vital difference is that a list pattern is exhaustive and won't match if elements are left unmatched. However with an array pattern, unmatched elements are ignored.
+
+For illustration, lets first look at how list patterns can and cannot match associative arrays:
 
 ```php
-// try removing key => val pairs from the input and see the effect on output
-match(['dog' => 'cat', 'cat' => 'mouse', 'mouse' => 'cheese'], [
-    when('prey' => key('cat')->_)
-        => fn($prey) => "cat chases $prey",
-    when(key()->hunter ('cat'))
-        => fn($hunter) => "cat gets chased by $hunter",
-    when(key('mouse')) => 'a mouse scuttles around',
-]);
+// list pattern cannot bind keys, can only match in-order, and must match exhaustively
+match(['dog' => 'cat', 'a' => 'b'], [
+    when(['hunter' => 'cat']) => fn($hunter) => "cat gets chased by $hunter",
+    when(['hunter' => 'cat', 'a' => 'b']) => fn($hunter) => $hunter;
+]); // cat
 ```
 
-The single argument of `key()` is an exact key name or pattern to match. Follow `key()` with `->keyBindName` to bind the key to a parameter, and follow that with `(value-pattern-args...)` to set a pattern for the value.
+Note how `'hunter'` in `'hunter' => 'cat'` is treated as a binding name rather than a key, asserting the value *must* be `'cat'` and will be bound to `$hunter`. The `'a' => 'b'` pair however is treated as a key-value pair, to be matched exactly with the element occurring at the 2nd position in the array. The matching is still exhaustive even though a key was matched.
+
+We can use `key()` to match key values with exact values and patterns *and* make the pattern a non-exhaustive array pattern rather than a list pattern:
+
+```php
+// PHPs unambiguous, case-insensitive syntax rules means we can use both the
+// `key` class and function as `key`
+use Encase\Matching\Support\Key;
+use function Encase\Matching\Support\key;
+
+// use key('key') to match keys and key::bindName(...) to bind keys matching a
+// pattern
+$hunt = fn($map) => match($map, [
+    when([key('cat') => 'prey']..)
+        => fn($prey) => "cat chases $prey",
+    when([key::hunter() => 'cat'])
+        => fn($hunter) => "cat gets chased by $hunter",
+    when([key('mouse') => 'other'])
+        => fn($other) => "mouse hides, $other rests",
+]);
+
+$hunt(['mouse' => 'dog', 'a' => 'b']);  // mouse hides, dog rests
+$hunt(['cat' => 'mouse', 'a' => 'b']);  // cat chases mouse
+$hunt(['dog' => 'cat', 'a' =>'b']);     // cat gets chased by dog
+```
+
+Using `key()` with a single string or integer argument matches exact element keys. Pattern arguments can be used to match the first element where the key matches the pattern. Using `key::hunter() => 'cat'` binds *any* key to the `$hunter` parameter, and matches so long as the value is `'cat'`.
+
+The single argument of `key()` or `key::param()` is an exact key name or pattern to match. For example you can use `key(Type::string())` to match any string key or `key::param(Type::int())` to match any integer key and bind it to `$param`.
 
 ## Regex Pattern
 
@@ -290,4 +337,30 @@ $ipValidator = fn($ip) => match($ip, [
 $ipValidator('abc');              // returns: false
 $ipValidator('255.255.255.256');  // returns: false
 $ipValidator('1.22.255.123')      // returns: true
+```
+
+# Further Examples
+
+Most of the examples given so far can probably be further improved in certain ways. Here are some examples that show more optimal approaches to classic tasks pattern matching can solve.
+
+## FizzBuzz
+
+```php
+$fizzBuzz = fn($i) => match([$i % 3, $i % 5], [
+    when([0, 0]) => 'Fizz Buzz',
+    when([0, _]) => 'Fizz',
+    when([_, 0]) => 'Buzz',
+    _ => $i,
+]);
+```
+
+## Factorial
+
+```php
+$factorial = function ($i) {
+    return match($i, [
+        0 => 1,
+        _ => fn($n) => $n * $factorial($n - 1),
+    ]);
+}
 ```
