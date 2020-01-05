@@ -208,6 +208,41 @@ class MatcherTest extends TestCase
 		$this->assertSame('Seat allocation is invalid', $getReservedSeat([14, 'D']));
 	}
 
+	public function testHunterPreyListExample()
+	{
+		$result = match(['dog' => 'cat', 'a' => 'b'], [
+			when(['hunter' => 'cat']) => fn($hunter) => "cat gets chased by $hunter",
+			when(['hunter' => 'cat', 'a' => 'b']) => fn($hunter) => $hunter,
+		]);
+		$this->assertSame('cat', $result);
+	}
+
+	public function testHunterPreyMapExample()
+	{
+		// try removing key => val pairs from the input and see the effect on output
+		$hunt = fn($input) => match($input, [
+			when([key('cat') => 'prey'])
+				=> fn($prey) => "cat chases $prey",
+			when([key::hunter() => 'cat'])
+				=> fn($hunter) => "cat gets chased by $hunter",
+			when([key('mouse') => 'other'])
+				=> fn($other) => "mouse hides, $other rests",
+		]);
+		$this->assertSame(
+			'mouse hides, dog rests',
+			$hunt(['mouse' => 'dog', 'a' => 'b'])
+		);
+		$this->assertSame(
+			'cat chases mouse',
+			$hunt(['cat' => 'mouse', 'a' => 'b'])
+		);
+		$this->assertSame(
+			'cat gets chased by dog',
+			$hunt(['dog' => 'cat', 'a' =>'b'])
+		);
+		//$this->assertSame('a mouse scuttles around', $hunterPrey(['mouse' => 'cheese']));
+	}
+
 	public function testScopelessDestructureForValueReselt()
 	{
 		$value = (object)['x' => (object)['y' => (object)['z' => 'bingo']]];
