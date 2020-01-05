@@ -247,6 +247,7 @@ class PatternBuilder
 	{
 		$list = [];
 		$hasRestPattern = false;
+		$isMapped = false;
 		$leaveAfterRest = 0;
 
 		foreach ($args as $k => $v) {
@@ -266,6 +267,7 @@ class PatternBuilder
 						$key->getPattern($bindNames),
 						$pattern
 					);
+					$isMapped = true;
 				} elseif (\in_array($k, $bindNames, true)) {
 					$keyIsBind = true;
 				} else {
@@ -296,6 +298,6 @@ class PatternBuilder
 			$list[] = $pattern;
 		}
 
-		return new ListPattern($list, $leaveAfterRest, $bindNames);
+		return new ListPattern($list, $leaveAfterRest, $isMapped, $bindNames);
 	}
 }

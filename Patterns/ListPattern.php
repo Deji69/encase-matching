@@ -15,16 +15,20 @@ class ListPattern extends Pattern
 	/** @var string[] */
 	protected $bindNames;
 
+	/** @var bool */
+	protected $isMapped = false;
+
 	/**
 	 * @param array $list
-	 * @param int $leaveRightOfRest
-	 * @param string[] $bindNames
+	 * @param int $restLeave
+	 * @param string[] $binds
 	 */
-	public function __construct($list, $leaveRightOfRest = 0, $bindNames = [])
+	public function __construct($list, $restLeave = 0, bool $isMapped = false, $binds = [])
 	{
 		$this->list = $list;
-		$this->bindNames = $bindNames;
-		$this->leaveRightOfRest = $leaveRightOfRest;
+		$this->bindNames = $binds;
+		$this->leaveRightOfRest = $restLeave;
+		$this->isMapped = $isMapped;
 	}
 
 	/**
@@ -36,7 +40,6 @@ class ListPattern extends Pattern
 		$value = (array)$value;
 
 		$argIt = new \ArrayIterator($value);
-		$isMapped = false;
 
 		foreach ($this->list as &$pattern) {
 			$mapByKey = $pattern instanceof KeyMatchable;
@@ -45,13 +48,20 @@ class ListPattern extends Pattern
 				return false;
 			}
 
-			if ($mapByKey) {
-				$isMapped = true;
+			if ($mapByKey && $this->isMapped) {
 				$result = $pattern->match($value, $captures);
 			} elseif ($pattern instanceof MultiMatchable) {
 				$result = $pattern->matchIterator($argIt, $captures, $this->leaveRightOfRest);
 			} else {
-				$result = $pattern->match($argIt->current(), $captures);
+				if ($mapByKey && !$this->isMapped
+				 && $pattern instanceof KeyMatchable) {
+					$result = $pattern->match(
+						[$argIt->key() => $argIt->current()],
+						$captures
+					);
+				} else {
+					$result = $pattern->match($argIt->current(), $captures);
+				}
 
 				if ($result !== false) {
 					$argIt->next();
@@ -68,7 +78,7 @@ class ListPattern extends Pattern
 		}
 
 		// invalidate if there are unmatched elements left in the list
-		if ($argIt->valid() && !$isMapped) {
+		if ($argIt->valid() && !$this->isMapped) {
 			return false;
 		}
 
