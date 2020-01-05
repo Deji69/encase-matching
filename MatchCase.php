@@ -1,13 +1,11 @@
 <?php
 namespace Encase\Matching;
 
-use Encase\Matching\Exceptions\MatchException;
 use Encase\Matching\Patternable;
-use Encase\Matching\Patterns\CallbackPattern;
-use Encase\Matching\Patterns\DestructurePattern;
-
 use function Encase\Functional\slice;
 use function Encase\Functional\union;
+use Encase\Matching\Exceptions\MatchException;
+use Encase\Matching\Patterns\DestructurePattern;
 
 class MatchCase
 {
