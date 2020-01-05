@@ -147,13 +147,42 @@ The following table lists the types of patterns supported by this library and th
 
 ## Constant Pattern
 
+Constant patterns are values values to be matched exactly. Comparisons are performed using the strict equality (`===`) operator. Not that due to the way PHP handles array keys, converting numeric strings to integers, only integers and non-numeric strings can be matched to.
+
 ```php
-match('hello' [
+$matcher = fn($val) => match($val, [
     1 => 'one',
-    3.14 => 'pi',
-    when(val($var)) => '$var',
-    'hello' => fn($v) => $v.' world',
-)); // result: 'hello world'
+    '2' => 'two',
+    '3.14159' => 'pi',
+    'boo' => 'hoo',
+    _ => false,
+]);
+$matcher('1');          // false
+$matcher(1);            // 'one'
+$matcher('2');          // false
+$matcher(2);            // 'two'
+$matcher('3.14159');    // 'pi'
+$matcher('boo');        // 'hoo'
+```
+
+This is sufficient as a less verbose way to strictly match integers and strings. If you want values to avoid the issues and limitations of PHP array keys, use `Encase\Matching\Support\when()`:
+
+```php
+$matcher = fn($val) => match($val, [
+    when(0) => 'zero (int)',
+    when(1) => 'one (int)',
+    when('') => 'empty string',
+    when(null) => 'null',
+    when(true) => 'true (bool)',
+    when(false) => 'false (bool)',
+]);
+
+$matcher(0);        // zero (int)
+$matcher(1);        // one (int)
+$matcher('');       // empty string
+$matcher(null);     // null
+$matcher(true);     // true
+$matcher(false);    // false
 ```
 
 ## Type Pattern
