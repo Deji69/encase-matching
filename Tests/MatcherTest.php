@@ -87,6 +87,47 @@ class MatcherTest extends TestCase
 		$this->assertSame("Got $number", $result);
 	}
 
+	public function testConstantPatternPiExample()
+	{
+		$matcher = fn($val) => match($val, [
+			1 => 'one',
+			'2' => 'two',
+			'3.14159' => 'pi',
+			'boo' => 'hoo',
+			_ => false,
+		]);
+		$this->assertFalse($matcher('1'));
+		$this->assertFalse($matcher('2'));
+		$this->assertFalse($matcher(3.14159));
+		$this->assertSame('one', $matcher(1));
+		$this->assertSame('two', $matcher(2));
+		$this->assertSame('pi', $matcher('3.14159'));
+		$this->assertSame('hoo', $matcher('boo'));
+	}
+
+	public function testConstantMatchZeroesExample()
+	{
+		$matcher = fn($val) => match($val, [
+			when(0) => 'zero',
+			when('') => 'empty string',
+			when(null) => 'null',
+			when(false) => 'false',
+		]);
+		$this->assertSame('zero', $matcher(0));
+		$this->assertSame('false', $matcher(false));
+		$this->assertSame('null', $matcher(null));
+	}
+
+	public function testConstantMatchOnesExample()
+	{
+		$matcher = fn($val) => match($val, [
+			when(1) => 'one',
+			when(true) => 'true'
+		]);
+		$this->assertSame('one', $matcher(1));
+		$this->assertSame('true', $matcher(true));
+	}
+
 	public function testExampleMatchWithBind()
 	{
 		$result = [];
@@ -194,6 +235,36 @@ class MatcherTest extends TestCase
 		}
 
 		$this->assertSame(['0 items', '1 item', '2 items', '3 items'], $results);
+	}
+
+	public function testParityBindingExample()
+	{
+		$getParity = fn($val) => match($val, [
+			when(Type::int()) => [
+				when(fn($v) => $v % 2 === 0) => 'even',
+				_ => 'odd',
+			],
+			'n' => fn($n) => "$n is not an integer",
+		]);
+		$this->assertSame('odd', $getParity(5));
+		$this->assertSame('even', $getParity(8));
+		$this->assertSame('foo is not an integer', $getParity('foo'));
+	}
+
+	public function testTicTacToeListExample()
+	{
+		$getTicTacToeRowResult = fn($list) => match($list, [
+			when(['x', 'y', 'z']) => [
+				when(fn($x, $y, $z) => $x == $y && $y == $z) => [
+					when(fn($x) => $x == 'x') => 'crosses wins!',
+					when(fn($x) => $x == 'o') => 'naughts wins!',
+				],
+			],
+			when(['x', 'o', 'x']) => fn($xox) => \implode(',', $xox).'!'
+		]);
+		$this->assertSame('naughts wins!', $getTicTacToeRowResult(['o', 'o', 'o']));
+		$this->assertSame('crosses wins!', $getTicTacToeRowResult(['x', 'x', 'x']));
+		$this->assertSame('x,o,x!', $getTicTacToeRowResult(['x', 'o', 'x']));
 	}
 
 	public function testSeatReservationExample()
