@@ -77,7 +77,7 @@ when(arg1, ...) => ...      // one or more arguments used to build pattern, wrap
 
 Single string and integer arguments are treated the same (aside from PHP's own key handling) no matter whether they are wrapped in `when()`, thus omitting `when()` for single arguments can be largely treated as a shortened syntax. However, using `when()` is still better for type safety due to PHP's array key handling and may also be slightly faster if the match is performed more than once due to the pattern object already being built.
 
-Note that single string arguments which match names of parameters in related closure case conditions and case result closures are treated as bind names to capture rather than the exact strings themselves. If you need strings which match var names in case results and sub-case patterns and results, wrap the string in `val()`.
+Note that single string arguments which match names of parameters in related closure case conditions and case result closures are treated as bind names to capture rather than the exact strings themselves. If you need strings which match var names in case results and sub-case patterns and results, wrap the string in `Encase\Matching\Support\val()`.
 
 ```php
 $result = match((object)['x' => 10, 'y'], [
@@ -134,14 +134,14 @@ The following table lists the types of patterns supported by this library and th
 
 | Name                   | Description            | Example                         |
 | ---------------------- |----------------------- | ------------------------------- |
- [Constant Pattern](#constant-pattern) | Matches exact values | `"str"`, `3.5`, `5`, `$var`
- [Type Pattern](#type-pattern) | Matches values by type | `when(Type::int())`, `when(Type::object(MyClass::class))`, `when(MyClass::class, [])`
- [Any Pattern](#any-pattern) | Matches if any value matches | `when(1, 2, 3)`, `when(1, 'one')`, `when(any(...))`
+ [Constant Pattern](#constant-pattern) | Matches exact values | `"str"` or `3.5` or `5` or `when(val($var))`
+ [Type Pattern](#type-pattern) | Matches values by type | `when(Type::int())` or `when(Type::object(MyClass::class))` or `when(MyClass::class, [])`
+ [Any Pattern](#any-pattern) | Matches if any value matches | `when(1, 2, 3)` or `when(1, 'one')` or `when(any(...))`
  [Wildcard Pattern](#wildcard-pattern) | Matches anything | `_` or `'_'`
- [Binding Pattern](#binding-pattern) | Matches on a pattern and captures the value | `'n'`, `'n' => ...`
+ [Binding Pattern](#binding-pattern) | Matches on a pattern and captures the value | `'n'` or `'n' => ...`
  [List Pattern](#list-pattern) | Matches a list of elements | `when(['first', '*', 'last'])`
- [Array Pattern](#array-pattern) | Matches key-value pairs in an associative array. | `key('foo') -> _ ('bar')`, `'odd' => key(Type::int()) -> oddKey (1, 3, 5, 7, 9)`
- [Regex Pattern](#regex-pattern) | Matches strings to regular expressions | `'/[A-Z]*/i'`
+ [Array Pattern](#array-pattern) | Matches key-value pairs in an associative array. | `key('foo') => 'bar'` or `key::oddKey(Type::int(), fn ($n) => $n % 2 === 0) => _`
+ [Regex Pattern](#regex-pattern) | Matches strings to regular expressions | `'/[A-Z]*/i'` or `when('/(?P<num>[0-9])/')`
 
 # Patterns
 
@@ -184,6 +184,8 @@ $matcher(null);     // null
 $matcher(true);     // true
 $matcher(false);    // false
 ```
+
+The pattern builder may use certain arguments as non-literal patterns. For example, the string `'foo'` may be interpreted as a binding name if there exists a `$foo` parameter argument in the same match case. You can use `val()` if you prefer parameters to be interpreted as exact values.
 
 ## Type Pattern
 
