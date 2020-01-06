@@ -3,6 +3,8 @@ namespace Encase\Matching;
 
 use Encase\Functional\Func;
 use Encase\Matching\CaseResultable;
+use Encase\Matching\Exceptions\MatchException;
+use TypeError;
 
 class CaseCall implements CaseResultable
 {
@@ -63,11 +65,15 @@ class CaseCall implements CaseResultable
 
 	protected function callFunction($args, $value)
 	{
-		if (empty($args)) {
-			if ($this->callable->getNumberOfRequiredParameters() > 0) {
-				return ($this->callable)($value);
+		try {
+			if (empty($args)) {
+				if ($this->callable->getNumberOfRequiredParameters() > 0) {
+					return ($this->callable)($value);
+				}
 			}
+			return ($this->callable)(...$args);
+		} catch (TypeError $e) {
+			throw new MatchException('Invalid arg type in case call result.', 0, $e);
 		}
-		return ($this->callable)(...$args);
 	}
 }
