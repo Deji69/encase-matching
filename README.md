@@ -22,6 +22,7 @@ Encase Pattern Matching Library
 - [Further Examples](#further-examples)
   - [FizzBuzz](#fizzbuzz)
   - [Factorial](#factorial)
+  - [Extract Array Elements Having Odd Keys](#extract-array-elements-having-odd-keys)
   
 # Overview
 
@@ -394,4 +395,22 @@ $factorial = function ($i) {
         _ => fn($n) => $n * $factorial($n - 1),
     ]);
 }
+```
+
+## Extract Array Elements Having Odd Keys
+
+```php
+$matcher = function ($list, $result = []) use (&$matcher) {
+    return match($list, [
+        when([key::k (fn(int $k) => $k % 2 !== 0) => 'v'])
+            => function ($k, $v) use (&$list, &$result, $matcher) {
+                unset($list[$k]);
+                $result[] = $v;
+                return $matcher($list, $result);
+            },
+        _ => fn() => $result,
+    ]);
+};
+
+$matcher([1, 2, 3, 4, 5, 6, 7, 8]);     // [2, 4, 6, 8]
 ```
