@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types = 1);
 // phpcs:disable
 namespace Encase\Matching\Tests;
 
@@ -14,6 +14,7 @@ use function Encase\Matching\Support\key;
 use function Encase\Matching\Support\val;
 use function Encase\Matching\Support\when;
 use function Encase\Matching\Support\match;
+use Encase\Matching\Exceptions\MatchException;
 
 class MatcherTest extends TestCase
 {
@@ -202,15 +203,47 @@ class MatcherTest extends TestCase
 		$factorial = function ($i) use (&$factorial) {
 			return match($i, [
 				0 => 1,
-				_ => fn($n) => $n * $factorial($n - 1),
+				_ => fn(int $n) => $n * $factorial($n - 1),
 			]);
 		};
 
 		$this->assertSame(1, $factorial(0));
 		$this->assertSame(1, $factorial(1));
 		$this->assertSame(2, $factorial(2));
-		$this->assertSame(6, $factorial(3));
 		$this->assertSame(24, $factorial(4));
+	}
+
+	public function testMatchExceptionOnExhaustedCases()
+	{
+		$this->expectException(MatchException::class);
+		match(3, [
+			1 => null,
+			2 => null,
+		]);
+	}
+
+	public function testMatchExceptionOnWhenCallTypeError()
+	{
+		$this->expectException(MatchException::class);
+		$this->expectExceptionMessageRegExp(
+			'/Invalid arg type in call pattern: Argument 1.*'.
+			'must be of the type int, string given/'
+		);
+		match('b', [
+			when(fn(int $a) => true) => 0,
+		]);
+	}
+
+	public function testMatchExceptionOnResultCallTypeError()
+	{
+		$this->expectException(MatchException::class);
+		$factorial = function ($i) use (&$factorial) {
+			return match($i, [
+				0 => 1,
+				_ => fn(int $n) => $n * $factorial($n - 1),
+			]);
+		};
+		$factorial('a');
 	}
 
 	public function testBindAvoidanceExample()
