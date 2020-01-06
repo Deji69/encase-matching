@@ -115,8 +115,8 @@ echo match($i, [
         when(fn($n) => $n <= 0) => '',
         when(fn($n) => $n % 3 == 0) => [
             when(fn($n) => $n % 5 == 0) => 'fizzbuzz',
-            _ => 'fizz'
-        ]
+            _ => 'fizz',
+        ],
         when(fn($n) => $n % 5 == 0) => 'buzz',
         _ => $i,
     ],
@@ -389,12 +389,12 @@ $fizzBuzz = fn($i) => match([$i % 3, $i % 5], [
 ## Factorial
 
 ```php
-$factorial = function ($i) {
+$factorial = function ($i) use (&$factorial) {
     return match($i, [
         0 => 1,
         _ => fn($n) => $n * $factorial($n - 1),
     ]);
-}
+};
 ```
 
 ## Extract Array Elements Having Odd Keys
