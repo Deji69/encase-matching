@@ -427,6 +427,15 @@ class MatcherTest extends TestCase
 		}
 	}
 
+	public function testArrayExactValueReturn()
+	{
+		$result = match(2, [
+			1 => false,
+			2 => val([]),
+		]);
+		$this->assertSame([], $result);
+	}
+
 	public function testDestructureList()
 	{
 		$array = [
