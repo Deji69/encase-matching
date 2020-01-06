@@ -70,22 +70,26 @@ class Matcher implements CaseResultable, Matchable
 	 */
 	public function match($arg, array $captures = ['@' => []])
 	{
+		$errors = [];
+
 		foreach ($this->cases as $case) {
-			$result = $case->match($arg, $captures);
+			try {
+				$result = $case->match($arg, $captures);
 
-			if ($result !== false) {
-				if (\is_array($result)) {
-					$captures = \array_merge($captures, $result);
-				}
-
-				try {
+				if ($result !== false) {
+					if (\is_array($result)) {
+						$captures = \array_merge($captures, $result);
+					}
 					return $case->getValue($this, $captures, $arg);
-				} catch(MatchException $e) {
 				}
+			} catch(MatchException $e) {
+				$errors[] = $e->getMessage();
 			}
 		}
 
-		throw new MatchException('No cases matched the argument.');
+		throw new MatchException(
+			"No case matched the argument\n  ".\implode("\n  ", $errors)
+		);
 	}
 
 	public function getBindNames(): array
