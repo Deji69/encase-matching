@@ -39,7 +39,17 @@ $result = match(3, [
 ]); // odd
 ```
 
-If no cases match the given arguments, a `MatcherException` exception is thrown. Default cases are made using `_` or `'_'`, and will be called if no other case matches instead of throwing an exception.
+If no cases match the given arguments, a `MatchException` exception is thrown. Default cases are made using `_` or `'_'`, and will be called if no other case matches instead of throwing an exception.
+
+Also note that should a `TypeError` occur by calling a closure with an invalid argument for the type hint in the signature, be it for a match condition or a case result, it will be treated equivalent to the case not being matched:
+
+```php
+$result = match('0', [
+    when('0') => fn(): int => '0',
+    when(fn(int $n) => $n < 0) => -1,
+    when(fn(int $n) => $n > 0) => 1,
+]); // throws MatchException as a TypeError occurs in every case
+```
 
 ## Syntax
 
