@@ -451,6 +451,24 @@ class MatcherTest extends TestCase
 		$this->assertSame(['Frank', 'abc', 'Age', 5], $result);
 	}
 
+	public function testGetOddKeyedElements()
+	{
+		$matcher = function ($list, $result = []) use (&$matcher) {
+			return match($list, [
+				when([key::k (Type::int(), fn($k) => $k % 2 !== 0) => 'v'])
+					=> function ($k, $v) use (&$list, &$result, $matcher) {
+						unset($list[$k]);
+						$result[] = $v;
+						return $matcher($list, $result);
+					},
+				_ => fn() => $result,
+			]);
+		};
+
+		$list = [1, 2, 3, 4, 5, 6, 7, 8];
+		$this->assertSame([2, 4, 6, 8], $matcher($list));
+	}
+
 	/** @dataProvider casesMatchPointObject */
 	public function testMatchPointObject($object, $expect)
 	{
