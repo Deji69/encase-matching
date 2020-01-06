@@ -392,7 +392,7 @@ $fizzBuzz = fn($i) => match([$i % 3, $i % 5], [
 $factorial = function ($i) use (&$factorial) {
     return match($i, [
         0 => 1,
-        _ => fn($n) => $n * $factorial($n - 1),
+        _ => fn(int $n) => $n * $factorial($n - 1),
     ]);
 };
 ```
