@@ -197,6 +197,22 @@ class MatcherTest extends TestCase
 		);
 	}
 
+	public function testFactorialExample()
+	{
+		$factorial = function ($i) use (&$factorial) {
+			return match($i, [
+				0 => 1,
+				_ => fn($n) => $n * $factorial($n - 1),
+			]);
+		};
+
+		$this->assertSame(1, $factorial(0));
+		$this->assertSame(1, $factorial(1));
+		$this->assertSame(2, $factorial(2));
+		$this->assertSame(6, $factorial(3));
+		$this->assertSame(24, $factorial(4));
+	}
+
 	public function testBindAvoidanceExample()
 	{
 		$result = [];
