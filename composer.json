@@ -1,0 +1,49 @@
+{
+	"name": "encase/matching",
+	"type": "library",
+	"description": "Intuitive pattern matching syntax in PHP.",
+	"license": "MIT",
+	"keywords": ["pattern matching", "functional"],
+	"homepage": "https://github.com/Deji69/encase-matching",
+	"authors": [
+		{
+			"name": "Deji69",
+			"email": "the_zone@hotmail.co.uk"
+		}
+	],
+	"require": {
+		"php": "^7.2",
+		"ext-mbstring": "*",
+		"encase/functional": "*"
+	},
+	"autoload": {
+		"psr-4": {
+			"Encase\\Matching\\": ""
+		},
+		"exclude-from-classmap": [
+			"/Tests/"
+		],
+		"files": [
+			"Support/_.php",
+			"Support/all.php",
+			"Support/any.php",
+			"Support/at.php",
+			"Support/key.php",
+			"Support/match.php",
+			"Support/val.php",
+			"Support/when.php"
+		]
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"Encase\\Functional\\": "../Functional"
+		}
+	},
+	"config": {
+		"sort-packages": true
+	},
+	"scripts": {
+		"test": "phpunit"
+	},
+	"minimum-stability": "dev"
+}
