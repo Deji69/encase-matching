@@ -46,10 +46,12 @@ Also note that should a `TypeError` occur by calling a closure with an invalid a
 ```php
 $result = match('0', [
     when('0') => fn(): int => '0',
-    when(fn(int $n) => $n < 0) => -1,
-    when(fn(int $n) => $n > 0) => 1,
+    when(fn(int $n) => $n <= 0) => -1,
+    when(fn(int $n) => $n >= 0) => 1,
 ]); // throws MatchException as a TypeError occurs in every case
 ```
+
+Any other exception thrown within the closures will not be caught by the matcher.
 
 ## Syntax
 
