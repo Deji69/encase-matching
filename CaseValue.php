@@ -1,6 +1,8 @@
 <?php
 namespace Encase\Matching;
 
+use Encase\Matching\Patterns\ExactPattern;
+
 class CaseValue implements CaseResultable
 {
 	protected $value;
@@ -20,6 +22,9 @@ class CaseValue implements CaseResultable
 	 */
 	public function getValue($matcher, $args, $value)
 	{
+		if ($this->value instanceof ExactPattern) {
+			return $this->value->getValue();
+		}
 		return $this->value;
 	}
 }
