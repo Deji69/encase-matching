@@ -455,7 +455,7 @@ class MatcherTest extends TestCase
 	{
 		$matcher = function ($list, $result = []) use (&$matcher) {
 			return match($list, [
-				when([key::k (Type::int(), fn($k) => $k % 2 !== 0) => 'v'])
+				when([key::k(fn(int $k) => $k % 2 !== 0) => 'v'])
 					=> function ($k, $v) use (&$list, &$result, $matcher) {
 						unset($list[$k]);
 						$result[] = $v;
