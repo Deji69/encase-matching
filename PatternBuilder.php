@@ -68,11 +68,16 @@ class PatternBuilder
 	 * @param  mixed $arg
 	 * @param  array $bindNames
 	 * @param  bool $exact
-	 * @return Matchable|null
+	 * @return Pattern|null
 	 */
-	public static function buildArg($arg, array $bindNames = [], bool $exact = false): ?Matchable
+	public static function buildArg($arg, array $bindNames = [], bool $exact = false): Pattern
 	{
+		if ($exact) {
+			return new ExactPattern($arg);
+		}
+
 		switch (typeOf($arg)) {
+			default:
 			case 'null':
 			case 'int':
 			case 'float':
@@ -80,35 +85,20 @@ class PatternBuilder
 				return new ExactPattern($arg);
 
 			case 'object':
-				if ($exact) {
-					return new ExactPattern($arg);
-				}
 				if ($built = static::buildObjectArg($arg, $bindNames)) {
 					return $built;
 				}
-				break;
+				return null;
 
 			case 'array':
-				if ($exact) {
-					return new ExactPattern($arg);
-				}
 				if ($built = static::buildList($arg, $bindNames)) {
 					return $built;
 				}
-				break;
+				return null;
 
 			case 'string':
-				if ($exact) {
-					return new ExactPattern($arg);
-				}
 				return static::buildStringArg($arg, $bindNames);
 		}
-
-		if (\is_callable($arg)) {
-			return new CallbackPattern($arg);
-		}
-
-		return null;
 	}
 
 	/**
@@ -175,7 +165,7 @@ class PatternBuilder
 		return static::buildMap($arg, Type::of($arg), $bindNames);
 	}
 
-	public static function buildAt(At $at, $bindNames = [])
+	public static function buildAt(At $at)
 	{
 		return new DestructurePattern($at);
 	}
@@ -226,7 +216,7 @@ class PatternBuilder
 	/**
 	 * Build an object destructuring pattern.
 	 *
-	 * @param  array $map
+	 * @param  array|object $map
 	 * @param  \Encase\Functional\Type $type
 	 * @param  string[] $bindNames
 	 * @return ObjectPattern
