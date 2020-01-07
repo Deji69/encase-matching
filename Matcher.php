@@ -6,7 +6,7 @@ use ArrayObject;
 use function Encase\Functional\map;
 use function Encase\Functional\each;
 use function Encase\Functional\union;
-use function Encase\Functional\accumulate;
+use function Encase\Functional\reduce;
 use Encase\Matching\Exceptions\MatchException;
 use Encase\Matching\Exceptions\PatternException;
 
@@ -94,7 +94,7 @@ class Matcher implements CaseResultable, Matchable
 
 	public function getBindNames(): array
 	{
-		$this->bindNameCache ??= accumulate(
+		$this->bindNameCache ??= reduce(
 			$this->cases,
 			[],
 			fn($array, $case) => union($array, $case->getBindNames())

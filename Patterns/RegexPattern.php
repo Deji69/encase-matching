@@ -1,7 +1,7 @@
 <?php
 namespace Encase\Matching\Patterns;
 
-use function Encase\Functional\accumulate;
+use function Encase\Functional\reduce;
 use function Encase\Functional\isIndexedArray;
 use Encase\Regex\Patternable as RegexPatternable;
 
@@ -32,7 +32,7 @@ class RegexPattern extends Pattern
 				if (isIndexedArray($matches)) {
 					return [$matches];
 				}
-				return accumulate($matches, [], function ($res, $val, $key) {
+				return reduce($matches, [], function ($res, $val, $key) {
 					if (\is_string($key)) {
 						$res[$key] = $val;
 					}
