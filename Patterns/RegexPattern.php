@@ -32,12 +32,12 @@ class RegexPattern extends Pattern
 				if (isIndexedArray($matches)) {
 					return [$matches];
 				}
-				return reduce($matches, [], function ($res, $val, $key) {
+				return reduce($matches, function ($res, $val, $key) {
 					if (\is_string($key)) {
 						$res[$key] = $val;
 					}
 					return $res;
-				});
+				}, []);
 			}
 		}
 		return false;

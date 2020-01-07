@@ -96,8 +96,8 @@ class Matcher implements CaseResultable, Matchable
 	{
 		$this->bindNameCache ??= reduce(
 			$this->cases,
-			[],
-			fn($array, $case) => union($array, $case->getBindNames())
+			fn($array, $case) => union($array, $case->getBindNames()),
+			[]
 		);
 		return $this->bindNameCache;
 	}
