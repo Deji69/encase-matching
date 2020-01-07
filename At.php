@@ -35,17 +35,17 @@ class At extends _
 
 		foreach ($this->£calls as $call) {
 			switch ($call[0]) {
-			case '__get':
-				$str .= '->'.$call[1][0];
-				break;
-			case '__set':
-				$str = '('.$str.'->'.$call[1][0].' = ...)';
-				break;
-			case '__call':
-				$str .= '->'.$call[1][0].'(...)';
-				break;
-			default:
-				$str .= '->'.$call[0][0].'(...)';
+				case '__get':
+					$str .= '->'.$call[1][0];
+					break;
+				case '__set':
+					$str = '('.$str.'->'.$call[1][0].' = ...)';
+					break;
+				case '__call':
+					$str .= '->'.$call[1][0].'(...)';
+					break;
+				default:
+					$str .= '->'.$call[0][0].'(...)';
 			}
 		}
 		return $str;
