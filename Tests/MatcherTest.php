@@ -99,7 +99,7 @@ class MatcherTest extends TestCase
 	public function testMatchExceptionOnWhenCallTypeError()
 	{
 		$this->expectException(MatchException::class);
-		$this->expectExceptionMessageRegExp(
+		$this->expectExceptionMessageMatches(
 			'/Invalid arg type in call pattern: Argument 1.*'.
 			'must be of the type int, string given/'
 		);
