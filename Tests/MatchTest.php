@@ -14,6 +14,7 @@ use function Encase\Matching\Support\val;
 use function Encase\Matching\Support\when;
 use function Encase\Matching\Support\match;
 use Encase\Matching\Exceptions\MatchException;
+use Encase\Matching\Exceptions\PatternException;
 
 class MatchTest extends TestCase
 {
@@ -56,6 +57,13 @@ class MatchTest extends TestCase
 	public function casesOddNumbers()
 	{
 		return \array_map(fn($num) => [$num], \range(1, 9, 2));
+	}
+
+	public function testThrowsPatternExceptionWithNoCases()
+	{
+		$this->expectException(PatternException::class);
+		$this->expectExceptionMessage('Matcher must have at least one case.');
+		match(null, []);
 	}
 
 	/** @dataProvider casesMatchType */
