@@ -32,6 +32,7 @@
 			"Support/at.php",
 			"Support/key.php",
 			"Support/match.php",
+			"Support/pattern.php",
 			"Support/val.php",
 			"Support/when.php"
 		]

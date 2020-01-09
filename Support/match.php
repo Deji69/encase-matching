@@ -17,6 +17,6 @@ function match($value, $cases = null)
 		return $matcher;
 	}
 
-	$matcher = new Matcher($cases);
+	$matcher = $cases instanceof Matcher ? $cases : new Matcher($cases);
 	return $matcher->match($value);
 }
