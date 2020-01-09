@@ -14,7 +14,6 @@ use function Encase\Matching\Support\val;
 use function Encase\Matching\Support\when;
 use function Encase\Matching\Support\match;
 use Encase\Matching\Exceptions\MatchException;
-use Encase\Matching\Exceptions\PatternException;
 
 class MatchTest extends TestCase
 {
@@ -57,13 +56,6 @@ class MatchTest extends TestCase
 	public function casesOddNumbers()
 	{
 		return \array_map(fn($num) => [$num], \range(1, 9, 2));
-	}
-
-	public function testThrowsPatternExceptionWithNoCases()
-	{
-		$this->expectException(PatternException::class);
-		$this->expectExceptionMessage('Matcher must have at least one case.');
-		match(null, []);
 	}
 
 	/** @dataProvider casesMatchType */
@@ -448,44 +440,6 @@ class MatchTest extends TestCase
 			_ => false,
 		]);
 		$this->assertSame('ok: 2', $result);
-	}
-
-	public function testRegexStringPatternWithNamedCaptures()
-	{
-		$checkIpDigit = fn($digit) => $digit >= 0 && $digit <= 255;
-		$validateIp = fn($ip) => match($ip, [
-			when('/\A(?P<ip1>\d{1,3})\.(?P<ip2>\d{1,3})\.(?P<ip3>\d{1,3})\.(?P<ip4>\d{1,3})\z/') => [
-				when(fn($ip1, $ip2, $ip3, $ip4) =>
-					$checkIpDigit($ip1) &&
-					$checkIpDigit($ip2) &&
-					$checkIpDigit($ip3) &&
-					$checkIpDigit($ip4)
-				) => true,
-			],
-			_ => false,
-		]);
-		$this->assertFalse($validateIp('abc'));
-		$this->assertFalse($validateIp('255.255.255.256'));
-		$this->assertTrue($validateIp('1.22.255.123'));
-	}
-
-	public function testRegexStringPatternWithAutomaticCaptures()
-	{
-		$checkIpDigit = fn($digit) => $digit >= 0 && $digit <= 255;
-		$validateIp = fn($ip) => match($ip, [
-			when('/\A(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\z/') => [
-				when(fn($ip) =>
-					$checkIpDigit($ip[1]) &&
-					$checkIpDigit($ip[2]) &&
-					$checkIpDigit($ip[3]) &&
-					$checkIpDigit($ip[4])
-				) => true,
-			],
-			_ => false,
-		]);
-		$this->assertFalse($validateIp('abc'));
-		$this->assertFalse($validateIp('255.255.255.256'));
-		$this->assertTrue($validateIp('1.22.255.123'));
 	}
 }
 

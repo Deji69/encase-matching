@@ -12,7 +12,6 @@ use function Encase\Matching\Support\match;
 
 class ExamplesTest extends TestCase
 {
-
 	public function testBindAvoidanceExample()
 	{
 		$result = [];
@@ -253,5 +252,43 @@ class ExamplesTest extends TestCase
 		$this->assertSame(1, $factorial(1));
 		$this->assertSame(2, $factorial(2));
 		$this->assertSame(24, $factorial(4));
+	}
+
+	public function testRegexStringPatternWithNamedCaptures()
+	{
+		$checkIpDigit = fn($digit) => $digit >= 0 && $digit <= 255;
+		$validateIp = fn($ip) => match($ip, [
+			when('/\A(?P<ip1>\d{1,3})\.(?P<ip2>\d{1,3})\.(?P<ip3>\d{1,3})\.(?P<ip4>\d{1,3})\z/') => [
+				when(fn($ip1, $ip2, $ip3, $ip4) =>
+					$checkIpDigit($ip1) &&
+					$checkIpDigit($ip2) &&
+					$checkIpDigit($ip3) &&
+					$checkIpDigit($ip4)
+				) => true,
+			],
+			_ => false,
+		]);
+		$this->assertFalse($validateIp('abc'));
+		$this->assertFalse($validateIp('255.255.255.256'));
+		$this->assertTrue($validateIp('1.22.255.123'));
+	}
+
+	public function testRegexStringPatternWithAutomaticCaptures()
+	{
+		$checkIpDigit = fn($digit) => $digit >= 0 && $digit <= 255;
+		$validateIp = fn($ip) => match($ip, [
+			when('/\A(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\z/') => [
+				when(fn($ip) =>
+					$checkIpDigit($ip[1]) &&
+					$checkIpDigit($ip[2]) &&
+					$checkIpDigit($ip[3]) &&
+					$checkIpDigit($ip[4])
+				) => true,
+			],
+			_ => false,
+		]);
+		$this->assertFalse($validateIp('abc'));
+		$this->assertFalse($validateIp('255.255.255.256'));
+		$this->assertTrue($validateIp('1.22.255.123'));
 	}
 }
