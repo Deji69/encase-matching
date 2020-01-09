@@ -2,7 +2,6 @@
 namespace Encase\Matching;
 
 use Closure;
-use ArrayObject;
 use function Encase\Functional\map;
 use function Encase\Functional\each;
 use function Encase\Functional\union;
@@ -157,89 +156,5 @@ class Matcher implements CaseResultable, Matchable
 			}
 		);
 		return $params;
-	}
-
-	/**
-	 * Undocumented function
-	 *
-	 * @param  string $str
-	 * @return array
-	 */
-	public static function parseBindingString($str)
-	{
-		$seperated = explode(',', $str);
-		$args = [];
-		$argOffsets = [];
-
-		foreach ($seperated as $arg) {
-			$offsets = [];
-
-			if ($bracketPos = \strpos($arg, '[')) {
-				$subscript = \substr($arg, $bracketPos);
-				$subscript = \preg_replace('/\[(\d+|\$?\w[\w\d]*)\]/', '$1.', $subscript);
-				$offsets = \explode('.', $subscript);
-
-				if (!empty($offsets)) {
-					\array_pop($offsets);
-
-					$arg = \substr($arg, 0, $bracketPos);
-				}
-			}
-
-			$args[] = $arg;
-			$argOffsets[] = $offsets;
-		}
-
-		return [
-			'args' => $args,
-			'offsets' => $argOffsets
-		];
-	}
-
-	/**
-	 * Undocumented function
-	 *
-	 * @param  string[] $args
-	 * @param  array $argOffsets
-	 * @param  array $captures
-	 * @return mixed
-	 */
-	public static function resolveCallBindings($args, $argOffsets, $captures)
-	{
-		$array = [];
-
-		$offsetArray = new ArrayObject($argOffsets);
-		$offsetIt = $offsetArray->getIterator();
-
-		foreach ($args as $arg) {
-			$offsets = $offsetIt->current();
-			$offsetIt->next();
-
-			if (empty($arg)) {
-				continue;
-			}
-
-			$arg = $captures[$arg];
-
-			foreach ($offsets as $offset) {
-				if ($offset[0] === '$') {
-					$arg = $arg[$captures[\substr($offset, 1)]];
-				} else {
-					$arg = $arg[$offset];
-				}
-			}
-
-			if (\is_array($arg)) {
-				$array = \array_merge($array, $arg);
-			} else {
-				$array[] = $arg;
-			}
-		}
-
-		if (\count($args) <= 1) {
-			return empty($array) ? null : $array[0];
-		}
-
-		return $array;
 	}
 }
