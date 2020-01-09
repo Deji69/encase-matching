@@ -15,7 +15,7 @@ use function Encase\Matching\Support\when;
 use function Encase\Matching\Support\match;
 use Encase\Matching\Exceptions\MatchException;
 
-class MatcherTest extends TestCase
+class MatchTest extends TestCase
 {
 	public function casesMatchType()
 	{
@@ -25,7 +25,7 @@ class MatcherTest extends TestCase
 			[1.0, 'float'],
 			[1, 'int'],
 			[null, 'null'],
-			[$this, 'MatcherTest'],
+			[$this, 'MatchTest'],
 			[(object)[], 'object'],
 			['', 'string'],
 		];
@@ -34,9 +34,9 @@ class MatcherTest extends TestCase
 	public function casesMatchPointObject()
 	{
 		return [
-			[new MatcherTest_Point(0, 5), 'Y: 5'],
-			[new MatcherTest_Point(6, 0), 'X: 6'],
-			[new MatcherTest_Point(7, 8), 'X,Y: 7,8'],
+			[new MatchTest_Point(0, 5), 'Y: 5'],
+			[new MatchTest_Point(6, 0), 'X: 6'],
+			[new MatchTest_Point(7, 8), 'X,Y: 7,8'],
 		];
 	}
 
@@ -68,7 +68,7 @@ class MatcherTest extends TestCase
 			when(Type::int())    => 'int',
 			when(Type::null())   => 'null',
 			when(Type::string()) => 'string',
-			when(MatcherTest::class, []) => 'MatcherTest',
+			when(MatchTest::class, []) => 'MatchTest',
 			when(Type::object()) => 'object',
 		]);
 		$this->assertSame($expect, $result);
@@ -288,9 +288,9 @@ class MatcherTest extends TestCase
 	public function testMatchPointObject($object, $expect)
 	{
 		$result = match($object, [
-			when(MatcherTest_Point::class, ['x', 'y' => 0]) => fn($x) => "X: $x",
-			when(MatcherTest_Point::class, ['x' => 0, 'y']) => fn($y) => "Y: $y",
-			when(MatcherTest_Point::class, ['x', 'y']) => fn($x, $y) => "X,Y: $x,$y",
+			when(MatchTest_Point::class, ['x', 'y' => 0]) => fn($x) => "X: $x",
+			when(MatchTest_Point::class, ['x' => 0, 'y']) => fn($y) => "Y: $y",
+			when(MatchTest_Point::class, ['x', 'y']) => fn($x, $y) => "X,Y: $x,$y",
 		]);
 		$this->assertSame($expect, $result);
 	}
@@ -481,7 +481,7 @@ class MatcherTest extends TestCase
 	}
 }
 
-class MatcherTest_Point
+class MatchTest_Point
 {
 	public $x;
 	public $y;
@@ -493,6 +493,6 @@ class MatcherTest_Point
 	}
 }
 
-class MatcherTest_Shape
+class MatchTest_Shape
 {
 }
