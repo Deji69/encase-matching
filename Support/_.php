@@ -13,7 +13,7 @@ const _ = '\0\0_';
  */
 function _(...$args)
 {
-	return new _($args);
+	return new _(...$args);
 }
 
 /**
@@ -106,7 +106,7 @@ class _ implements ArrayAccess
 	 *
 	 * @param  string $name
 	 * @param  array  $args
-	 * @return static
+	 * @return self|static
 	 */
 	public static function __callStatic($name, $args)
 	{

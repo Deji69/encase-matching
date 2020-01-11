@@ -51,9 +51,14 @@ class At extends _
 		return $str;
 	}
 
+	/**
+	 * @param  string $name
+	 * @param  array $args
+	 * @return self|static
+	 */
 	public static function& __callStatic($name, $args)
 	{
-		$at = new At($name);
+		$at = new static($name);
 		$at->£patternArgs = $args;
 		$at->£var =& $at;
 		return $at->£var;
