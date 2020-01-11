@@ -4,7 +4,7 @@ namespace Encase\Matching\Support;
 use Encase\Matching\At;
 
 /**
- * Get an At binder for the given variable, or get the bound value  from an At
+ * Get an At binder for the given variable, or get the bound value from an At
  * binder.
  *
  * @param array $pattern
