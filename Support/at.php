@@ -2,9 +2,6 @@
 namespace Encase\Matching\Support;
 
 use Encase\Matching\At;
-use Encase\Matching\Matchable;
-use Encase\Matching\PatternBuilder;
-use Encase\Matching\Patterns\DestructurePattern;
 
 /**
  * Get an At binder for the given variable, or get the bound value  from an At
