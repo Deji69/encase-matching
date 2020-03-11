@@ -53,23 +53,6 @@ class DestructurePattern extends Pattern
 		return $captures;
 	}
 
-	public static function destructureValue(At $at)
-	{
-		$value = $at->£var;
-
-		for ($i = $at->£destructureCallCount; $i < \count($at->£calls); ++$i) {
-			$call = $at->£calls[$i];
-
-			if (!static::destructureCall($call[0], $call[1], $value)) {
-				return false;
-			}
-		}
-
-		$at->£calls = slice($at->£calls, 0, $at->£destructureCallCount);
-		$at->£var = $value;
-		return true;
-	}
-
 	public static function destructureCall($methodName, $args, &$value)
 	{
 		$getArrayElement = function () use ($args, &$value) {
