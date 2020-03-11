@@ -138,6 +138,15 @@ class MatchTest extends TestCase
 		$this->assertSame('bingo', $result);
 	}
 
+	public function testScopelessDestructureForResultWithCall()
+	{
+		$value = (object)['x' => (object)['y' => fn($a) => $a === 'foo' ? 'bingo' : 'nope']];
+		$result = match($value, [
+			when($a = at()->x) => $a->y('foo')
+		]);
+		$this->assertSame('bingo', $result);
+	}
+
 	public function testScopelessDestructureForWhen()
 	{
 		$value = (object)['x' => (object)['y' => (object)['z' => 'foo']]];

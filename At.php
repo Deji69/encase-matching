@@ -41,9 +41,6 @@ class At extends _
 				case '__set':
 					$str = '('.$str.'->'.$call[1][0].' = ...)';
 					break;
-				case '__call':
-					$str .= '->'.$call[1][0].'(...)';
-					break;
 				default:
 					$str .= '->'.$call[0].'(...)';
 			}

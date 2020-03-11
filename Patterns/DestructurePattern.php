@@ -2,8 +2,7 @@
 namespace Encase\Matching\Patterns;
 
 use Encase\Matching\At;
-
-use function Encase\Functional\slice;
+use Encase\Matching\Exceptions\DestructureException;
 
 /**
  * Destructure pattern matches objects and captures properties.
@@ -40,9 +39,7 @@ class DestructurePattern extends Pattern
 				$bindName = $call[1][0];
 			}
 
-			if (!static::destructureCall($call[0], $call[1], $value)) {
-				return false;
-			}
+			$value = static::destructureCall($call[0], $call[1], $value);
 		}
 
 		$this->at->£var = $value;
@@ -53,59 +50,57 @@ class DestructurePattern extends Pattern
 		return $captures;
 	}
 
-	public static function destructureCall($methodName, $args, &$value)
+	/**
+	 * Destructure a value by applying a method call on the value.
+	 *
+	 * @param  string $methodName __get, offsetGet or non-magic method name.
+	 * @param  array $args The arguments for the method call.
+	 * @param  mixed $value The object, array or callable to destructure.
+	 * @return mixed The result of the accessed property or function.
+	 */
+	public static function destructureCall($methodName, $args, $value)
 	{
-		$getArrayElement = function () use ($args, &$value) {
-			if (!$value instanceof \ArrayAccess || !$value->offsetExists($args[0])) {
-				if (!\is_array($value) || !\array_key_exists($args[0], $value)) {
-					return false;
+		$getArrayElement = function ($value, $key) {
+			if (!$value instanceof \ArrayAccess || !$value->offsetExists($key)) {
+				if (!\is_array($value) || !\array_key_exists($key, $value)) {
+					throw new DestructureException('Failed to destructure array');
 				}
 			}
 
-			$value = $value[$args[0]];
-			return true;
+			return $value[$key];
+		};
+		$getProperty = function ($value, $name) use ($getArrayElement) {
+			if (\is_object($value)) {
+				if (\property_exists($value, $name)
+				 || \method_exists($value, '__get')) {
+					return $value->{$name} ?? null;
+				}
+			}
+			return $getArrayElement($value, $name);
 		};
 
 		switch ($methodName) {
 			case '__get': {
-				if (!\is_object($value)) {
-					if (\is_array($value)) {
-						if ($getArrayElement()) {
-							break;
-						}
-					}
-					return false;
-				}
-
-				if (!\property_exists($value, $args[0])
-				 && !\method_exists($value, '__get')) {
-					return false;
-				}
-
-				$value = $value->{$args[0]} ?? null;
-				break;
+				return $getProperty($value, $args[0]);
 			}
 			case 'offsetGet': {
-				if ($getArrayElement()) {
-					break;
-				}
-				return false;
+				return $getArrayElement($value, $args[0]);
 			}
-			case '__call':
 			default: {
-				if (!\is_object($value)) {
-					return false;
+				if (\is_object($value) && \method_exists($value, $methodName)) {
+					return $value->{$args[0]}(...$args[1]);
 				}
 
-				if (!\method_exists($value, $args[0])
-				 && !\method_exists($value, '__call')) {
-					return false;
+				$value = $getProperty($value, $methodName);
+
+				if (\is_callable($value)) {
+					return $value(...$args);
 				}
 
-				$value = $value->{$args[0]}(...$args[1]);
 				break;
 			}
 		}
-		return true;
+
+		throw new DestructureException('Failed to destructure call');
 	}
 }

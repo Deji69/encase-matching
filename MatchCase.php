@@ -6,6 +6,7 @@ use function Encase\Functional\slice;
 use function Encase\Functional\union;
 use Encase\Matching\Exceptions\MatchException;
 use Encase\Matching\Patterns\DestructurePattern;
+use Encase\Matching\Exceptions\DestructureException;
 
 class MatchCase
 {
@@ -108,7 +109,9 @@ class MatchCase
 			for ($i = $count; $i < \count($result->£calls); ++$i) {
 				$call = $result->£calls[$i];
 
-				if (!DestructurePattern::destructureCall($call[0], $call[1], $val)) {
+				try {
+					$val = DestructurePattern::destructureCall($call[0], $call[1], $val);
+				} catch (DestructureException $e) {
 					$newAt = clone $result;
 					$newAt->£calls = slice($newAt->£calls, $result->£destructureCallCount);
 					throw new MatchException('Failed to destructure case result '.$newAt);
