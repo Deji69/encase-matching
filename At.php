@@ -45,7 +45,7 @@ class At extends _
 					$str .= '->'.$call[1][0].'(...)';
 					break;
 				default:
-					$str .= '->'.$call[0][0].'(...)';
+					$str .= '->'.$call[0].'(...)';
 			}
 		}
 		return $str;
