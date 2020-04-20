@@ -122,7 +122,7 @@ class PatternBuilder
 			return new WildcardPattern($arg);
 		}
 
-		if (Regex::isRegexString($arg)) {
+		if (\class_exists(Regex::class) && Regex::isRegexString($arg)) {
 			return new RegexPattern(new Regex($arg));
 		}
 
