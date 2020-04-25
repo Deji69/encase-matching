@@ -50,6 +50,16 @@ class GroupPattern extends Pattern
 		$this->patterns = $builtPatterns;
 	}
 
+	public function getConnective(): string
+	{
+		return $this->connective;
+	}
+
+	public function getPatterns(): array
+	{
+		return $this->patterns;
+	}
+
 	/**
 	 * @inheritDoc
 	 */

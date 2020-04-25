@@ -4,7 +4,7 @@ namespace Encase\Matching\Patterns;
 use TypeError;
 use Encase\Functional\Func;
 use Encase\Matching\Matcher;
-use Encase\Matching\Exceptions\MatchException;
+use Encase\Matching\Exceptions\MatchCaseException;
 
 class CallbackPattern extends Pattern
 {
@@ -36,6 +36,11 @@ class CallbackPattern extends Pattern
 		return $this->callFunction($args);
 	}
 
+	public function getFunction(): Func
+	{
+		return $this->func;
+	}
+
 	/**
 	 * @inheritDoc
 	 */
@@ -62,14 +67,14 @@ class CallbackPattern extends Pattern
 	 */
 	protected function callFunction($args)
 	{
+		$this->func = new Func(clone $this->func->get());
+		return (bool)($this->func)(...$args);
 		try {
-			$this->func = new Func(clone $this->func->get());
-			return (bool)($this->func)(...$args);
 		} catch (TypeError $e) {
 			$message = $e->getMessage();
 			$pos = \strpos($message, 'given, called in');
 			$message = \substr($message, 0, $pos !== false ? $pos + 5 : null);
-			throw new MatchException(
+			throw new MatchCaseException(
 				'Invalid arg type in call pattern: '.$message,
 				0,
 				$e

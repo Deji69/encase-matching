@@ -1,10 +1,11 @@
 <?php
 namespace Encase\Matching;
 
+use TypeError;
 use Encase\Functional\Func;
+use Encase\Functional\Type;
 use Encase\Matching\CaseResultable;
 use Encase\Matching\Exceptions\MatchException;
-use TypeError;
 
 class CaseCall implements CaseResultable
 {
@@ -68,12 +69,60 @@ class CaseCall implements CaseResultable
 		try {
 			if (empty($args)) {
 				if ($this->callable->getNumberOfRequiredParameters() > 0) {
-					return ($this->callable)($value);
+					$args = [$value];
 				}
 			}
 			return ($this->callable)(...$args);
 		} catch (TypeError $e) {
-			throw new MatchException('Invalid arg type in case call result.', 0, $e);
+			throw new MatchException($this->getFunctionCallExceptionMessage($args), 0, $e);
 		}
+	}
+
+	protected function getFunctionCallExceptionMessage($args): string
+	{
+		$numArgs = \count($args);
+		$minNumArgs = $this->callable->getNumberOfRequiredParameters();
+
+		if ($numArgs < $minNumArgs) {
+			return "Too few arguments, $numArgs passed and $minNumArgs required.";
+		}
+
+		$refl = $this->callable->getReflection();
+		$params = $refl->getParameters();
+
+		for ($i = 0; $i < $numArgs; ++$i) {
+			$param = $params[$i];
+			$paramType = $param->getType();
+
+			if ($paramType === null) {
+				continue;
+			}
+
+			$arg = $args[$i];
+			$argType = Type::of($arg);
+			$paramPos = $i + 1;
+			$paramName = $param->getName();
+			$paramTypeName = $paramType->getName();
+			$orNull = $param->allowsNull() ? ' or null' : '';
+
+			if ($orNull && $argType->type === 'null') {
+				continue;
+			}
+
+			$argMustBe = "Arg $paramPos (\$$paramName) must be";
+			$paramTypeOrNull = "$paramTypeName$orNull";
+			$annotatedArg = $argType->annotate($arg);
+			$given = $argType->class !== null ? "instance of $annotatedArg given" : "$annotatedArg given";
+
+			if ($paramType->isBuiltin()) {
+				if ($argType->type !== $paramTypeName) {
+					return "$argMustBe of type $paramTypeOrNull, $given";
+				}
+			} elseif ($argType->class !== $paramTypeName) {
+				return "$argMustBe an instance of $paramTypeOrNull, $given";
+			}
+		}
+
+		return 'Invalid arg type in case call result.';
 	}
 }

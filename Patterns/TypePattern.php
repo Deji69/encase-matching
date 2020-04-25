@@ -13,6 +13,11 @@ class TypePattern extends Pattern
 		$this->type = $type;
 	}
 
+	public function getType(): Type
+	{
+		return $this->type;
+	}
+
 	public function matchValue($value, array $bindNames = [])
 	{
 		return $this->type->check($value);

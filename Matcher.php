@@ -2,12 +2,15 @@
 namespace Encase\Matching;
 
 use Closure;
+use TypeError;
 use function Encase\Functional\map;
 use function Encase\Functional\each;
 use function Encase\Functional\union;
 use function Encase\Functional\reduce;
 use Encase\Matching\Exceptions\MatchException;
 use Encase\Matching\Exceptions\PatternException;
+use Encase\Matching\Exceptions\MatchCaseException;
+use Encase\Matching\Exceptions\DestructureException;
 
 class Matcher implements CaseResultable, Matchable
 {
@@ -70,25 +73,38 @@ class Matcher implements CaseResultable, Matchable
 	public function match($arg, array $captures = ['@' => []])
 	{
 		$errors = [];
+		$resultErrors = [];
 
-		foreach ($this->cases as $case) {
+		foreach ($this->cases as $caseKey => $case) {
+			$result = false;
+
 			try {
 				$result = $case->match($arg, $captures);
+			} catch (DestructureException|MatchCaseException|TypeError $e) {
+				$errors[$caseKey] = $e;
+			}
 
-				if ($result !== false) {
-					if (\is_array($result)) {
-						$captures = \array_merge($captures, $result);
-					}
-					return $case->getValue($this, $captures, $arg);
+			if ($result !== false) {
+				if (\is_array($result)) {
+					$captures = \array_merge($captures, $result);
 				}
-			} catch(MatchException $e) {
-				$errors[] = $e->getMessage();
+				try {
+					return $case->getValue($this, $captures, $arg);
+				} catch (DestructureException|MatchCaseException|TypeError $e) {
+					$resultErrors[$caseKey] = $e;
+				} catch (MatchException $e) {
+					$resultErrors[$caseKey] = $e;
+				}
 			}
 		}
 
-		throw new MatchException(
-			"No case matched the argument\n  ".\implode("\n  ", $errors)
-		);
+		$cases = map($this->cases, fn($case, $i) => [
+			'case' => $case,
+			'error' => $errors[$i] ?? null,
+			'resultError' => $resultErrors[$i] ?? null,
+		]);
+
+		throw MatchException::new($arg, $cases);
 	}
 
 	public function getBindNames(): array

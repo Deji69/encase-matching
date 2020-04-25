@@ -96,30 +96,6 @@ class MatchTest extends TestCase
 		]);
 	}
 
-	public function testMatchExceptionOnWhenCallTypeError()
-	{
-		$this->expectException(MatchException::class);
-		$this->expectExceptionMessageMatches(
-			'/Invalid arg type in call pattern: Argument 1.*'.
-			'must be of the type int, string given/'
-		);
-		match('b', [
-			when(fn(int $a) => true) => 0,
-		]);
-	}
-
-	public function testMatchExceptionOnResultCallTypeError()
-	{
-		$this->expectException(MatchException::class);
-		$factorial = function ($i) use (&$factorial) {
-			return match($i, [
-				0 => 1,
-				_ => fn(int $n) => $n * $factorial($n - 1),
-			]);
-		};
-		$factorial('a');
-	}
-
 	public function testScopelessDestructureForValueReselt()
 	{
 		$value = (object)['x' => (object)['y' => (object)['z' => 'bingo']]];
