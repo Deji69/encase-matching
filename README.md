@@ -4,29 +4,31 @@ Encase Pattern Matching Library
 
 - [Encase Pattern Matching Library](#encase-pattern-matching-library)
 - [Overview](#overview)
-  - [Syntax](#syntax)
-    - [Matcher Syntax](#matcher-syntax)
-    - [Case Conditions](#case-conditions)
-    - [Case Results](#case-results)
-    - [Match Guarding](#match-guarding)
-  - [Pattern Overview](#pattern-overview)
+	- [Syntax](#syntax)
+		- [Matcher Syntax](#matcher-syntax)
+		- [Case Conditions](#case-conditions)
+		- [Case Results](#case-results)
+		- [Match Guarding](#match-guarding)
+	- [Pattern Overview](#pattern-overview)
 - [Patterns](#patterns)
-  - [Constant Pattern](#constant-pattern)
-  - [Type Pattern](#type-pattern)
-  - [Any Pattern](#any-pattern)
-  - [Wildcard Pattern](#wildcard-pattern)
-  - [Binding Pattern](#binding-pattern)
-  - [List Pattern](#list-pattern)
-  - [Array Pattern](#array-pattern)
-  - [Regex Pattern](#regex-pattern)
+	- [Constant Pattern](#constant-pattern)
+	- [Type Pattern](#type-pattern)
+	- [Any Pattern](#any-pattern)
+	- [Wildcard Pattern](#wildcard-pattern)
+	- [Binding Pattern](#binding-pattern)
+	- [List Pattern](#list-pattern)
+	- [Array Pattern](#array-pattern)
+	- [Regex Pattern](#regex-pattern)
+- [Exceptions](#exceptions)
+- [Future Potential](#future-potential)
 - [Further Examples](#further-examples)
-  - [FizzBuzz](#fizzbuzz)
-  - [Factorial](#factorial)
-  - [Extract Array Elements Having Odd Keys](#extract-array-elements-having-odd-keys)
+	- [FizzBuzz](#fizzbuzz)
+	- [Factorial](#factorial)
+	- [Extract Array Elements Having Odd Keys](#extract-array-elements-having-odd-keys)
   
 # Overview
 
-Pattern Matching is a popular tool which has been increasingly implemented in many non-functional languages. PHP has no such feature and userland implementation of it can be tricky due to its relatively tight syntax restraints and limited metaprogramming capabilities. At least one attempt has been made to bring this feature to PHP in a library ([functional-php/pattern-matching](https://github.com/functional-php/pattern-matching)). This library attempts to offer powerful userland pattern matching a syntax which fits in with PHP better.
+Pattern Matching is a popular tool which has been increasingly implemented in many non-functional languages. PHP has no such feature (and additionally, a recent RFC was rejected) and userland implementation of it can be tricky due to its relatively tight syntax restraints and limited metaprogramming capabilities. At least one attempt has been made to bring this feature to PHP in a library ([functional-php/pattern-matching](https://github.com/functional-php/pattern-matching)). This library attempts to offer powerful userland pattern matching a syntax which fits in with PHP better.
 
 ```php
 $result = match(3, [
@@ -39,7 +41,7 @@ $result = match(3, [
 ]); // odd
 ```
 
-If no cases match the given arguments, a `MatchException` exception is thrown. Default cases are made using `_` or `'_'`, and will be called if no other case matches instead of throwing an exception.
+If no cases match the given arguments, a `MatchException` exception is thrown. Default cases are made using `_` or `'_'`, and will be called if no other case matches, instead of throwing an exception.
 
 Also note that should a `TypeError` occur by calling a closure with an invalid argument for the type hint in the signature, be it for a match condition or a case result, it will be treated equivalent to the case not being matched:
 
@@ -383,6 +385,97 @@ $ipValidator('abc');              // returns: false
 $ipValidator('255.255.255.256');  // returns: false
 $ipValidator('1.22.255.123')      // returns: true
 ```
+
+# Exceptions
+
+If no case matches a given expression, either due to the pattern or value not matching or a type error occurring in the case of callback patterns; or if the only case(s) that do match give a type error when calling the result closure, an exception is thrown of type `Encase\Matching\Exceptions\MatchException`. The matcher will essentially catch all type errors and convert them into match exceptions. No other thrown exception type will be caught by the matcher.
+
+The message in the thrown `MatchException` will try to give useful information on how the cases were exhausted. For example, given simple, exact-value based cases:
+
+```php
+match(99, [
+	1 => 1,
+	3 => 3,
+	5 => 5,
+	'foo' => 'bar'
+]);
+```
+
+The resulting exception message is:
+
+```
+No case matched int(99):
+  did not match exact values: 1, 3, 5, 'foo'
+```
+
+Consecutive case values of the same pattern type (e.g. [constant](#constant-pattern), [type](#type-pattern)) will be shown on a single line.
+
+Should the cause of match exhaustion include type errors, a diagnostic of the type error(s) will be shown underneath the case diagnosis:
+
+```php
+match(null, [
+	when(fn(int $v) => true) => 'int',
+	when(fn(float $v) => true) => 'float',
+	when(fn($v) => false) => 'other',
+]);
+```
+
+Exception message:
+
+```
+No case matched null:
+  did not match: fn(int $v), fn(float $v), fn($v)
+    Exception: Argument 1 passed to {closure}() must be of the type int, null given
+    Exception: Argument 1 passed to {closure}() must be of the type float, null given
+```
+
+Case result type errors do a similar thing, though the diagnostic is simplified (this would probably also be the case with the above example in a future version). The following example also demonstrates a mixture of pattern types and how matching a wildcard can still fail if the case result closure causes a type error:
+
+```php
+match('a', [
+	0 => 1,
+	_ => fn(int $n) => $n,
+]);
+```
+
+Exception message:
+
+```
+No case matched string('a'):
+  did not match exact values: 0
+  matched with _:
+    Exception: Arg 1 ($n) must be of type int, string('a') given
+```
+
+Finally, an example which shows a full diagnostic with match guarding, where the guard matched but none of the sub-cases did:
+
+```php
+match(0, [
+	when(Type::int()) => [
+		1 => 1,
+		2 => 2,
+	],
+]);
+```
+
+Exception message:
+
+```
+No case matched int(0):
+  matched with type: int
+    Exception: No case matched int(0):
+      did not match exact values: 1, 2
+```
+
+# Future Potential
+
+This project is very much a work-in-progress and has no stable release. I am personally using this in projects in order to battle-test it and figure out what adjustments should be made to make it as usable as possible. If you have an interest in this, your feedback would be greatly appreciated.
+
+One big thing I have been unsure of is the handling of returned arrays as sub-cases for match guarding. Being able to return arrays simply and without wrapping the array in `val()` might be worth considering, but would require extra syntax in the cases where you do need to use match guarding. The most obvious solution is to make it opt-in and require wrapping the array in `pattern()` or some new helper function (I previously considered `with()` for something similar). The optimisation side of things however is in question - when using raw arrays, PHP will build the array every time the scope is entered. This goes away if you instead return the array via a closure.
+
+Optimisation is probably a valid concern with something which should be so rudimentary and often used in loops. While some optimisation techniques have been employed, there are still additional options I can consider, for example detecting consecutive exact value cases and building them into an array to test multiple cases at once with native PHP functions. However, usability is the primary focus at this time.
+
+If using `match()` in a tight loop where performance is nice (obviously, if performance is critical, you're better off not using this at all), it is recommended to build the match array using `pattern()` in an outer scope, and use the resulting objects `Matcher::match()` method to re-use the pre-built matcher.
 
 # Further Examples
 
