@@ -138,6 +138,7 @@ echo match($i, [
 ]);
 echo "\n";
 ```
+*Note: This example is more verbose than it has to be for demonstrative purposes, see [Further Examples](#further-examples) for a neater solution to fizz buzz.*
 
 If a `when()` pattern arg is a closure, it is either given previously destructured values inherited from the parent case, or the matched value itself.
 
