@@ -14,7 +14,7 @@ use Encase\Matching\Patterns\Pattern;
 use Encase\Matching\Patterns\TypePattern;
 use Encase\Matching\Patterns\ExactPattern;
 use Encase\Matching\Patterns\GroupPattern;
-use Encase\Matching\Patterns\CallbackPattern;
+use Encase\Matching\Patterns\ClosurePattern;
 use Encase\Matching\Patterns\WildcardPattern;
 
 class MatchException extends Exception
@@ -150,7 +150,7 @@ class MatchException extends Exception
 			}
 
 			return (string)$type;
-		} elseif ($pattern instanceof CallbackPattern) {
+		} elseif ($pattern instanceof ClosurePattern) {
 			return static::representValue($pattern->getFunction());
 		}
 		return \get_class($pattern);

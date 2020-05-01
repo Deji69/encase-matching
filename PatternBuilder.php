@@ -17,7 +17,7 @@ use Encase\Matching\Patterns\ExactPattern;
 use Encase\Matching\Patterns\GroupPattern;
 use Encase\Matching\Patterns\RegexPattern;
 use Encase\Matching\Patterns\ObjectPattern;
-use Encase\Matching\Patterns\CallbackPattern;
+use Encase\Matching\Patterns\ClosurePattern;
 use Encase\Matching\Patterns\WildcardPattern;
 use Encase\Matching\Exceptions\PatternException;
 use Encase\Matching\Patterns\DestructurePattern;
@@ -143,7 +143,7 @@ class PatternBuilder
 		}
 
 		if ($arg instanceof Closure || $arg instanceof Func) {
-			return new CallbackPattern($arg);
+			return new ClosurePattern($arg);
 		}
 
 		if ($arg instanceof Matchable) {

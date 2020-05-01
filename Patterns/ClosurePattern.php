@@ -4,9 +4,9 @@ namespace Encase\Matching\Patterns;
 use TypeError;
 use Encase\Functional\Func;
 use Encase\Matching\Matcher;
-use Encase\Matching\Exceptions\MatchCaseException;
+use Encase\Matching\Exceptions\MatchException;
 
-class CallbackPattern extends Pattern
+class ClosurePattern extends Pattern
 {
 	/** @var Func */
 	protected $func;
@@ -74,7 +74,7 @@ class CallbackPattern extends Pattern
 			$message = $e->getMessage();
 			$pos = \strpos($message, 'given, called in');
 			$message = \substr($message, 0, $pos !== false ? $pos + 5 : null);
-			throw new MatchCaseException(
+			throw new MatchException(
 				'Invalid arg type in call pattern: '.$message,
 				0,
 				$e
