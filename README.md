@@ -4,27 +4,28 @@ Encase Pattern Matching Library
 
 - [Encase Pattern Matching Library](#encase-pattern-matching-library)
 - [Overview](#overview)
-	- [Syntax](#syntax)
-		- [Matcher Syntax](#matcher-syntax)
-		- [Case Conditions](#case-conditions)
-		- [Case Results](#case-results)
-		- [Match Guarding](#match-guarding)
-	- [Pattern Overview](#pattern-overview)
+  - [Syntax](#syntax)
+    - [Matcher Syntax](#matcher-syntax)
+    - [Case Conditions](#case-conditions)
+    - [Case Results](#case-results)
+    - [Match Guarding](#match-guarding)
+  - [Pattern Overview](#pattern-overview)
 - [Patterns](#patterns)
-	- [Constant Pattern](#constant-pattern)
-	- [Type Pattern](#type-pattern)
-	- [Any Pattern](#any-pattern)
-	- [Wildcard Pattern](#wildcard-pattern)
-	- [Binding Pattern](#binding-pattern)
-	- [List Pattern](#list-pattern)
-	- [Array Pattern](#array-pattern)
-	- [Regex Pattern](#regex-pattern)
+  - [Constant Pattern](#constant-pattern)
+  - [Type Pattern](#type-pattern)
+  - [Any Pattern](#any-pattern)
+  - [Wildcard Pattern](#wildcard-pattern)
+  - [Binding Pattern](#binding-pattern)
+  - [Closure Pattern](#closure-pattern)
+  - [List Pattern](#list-pattern)
+  - [Array Pattern](#array-pattern)
+  - [Regex Pattern](#regex-pattern)
 - [Exceptions](#exceptions)
 - [Future Potential](#future-potential)
 - [Further Examples](#further-examples)
-	- [FizzBuzz](#fizzbuzz)
-	- [Factorial](#factorial)
-	- [Extract Array Elements Having Odd Keys](#extract-array-elements-having-odd-keys)
+  - [FizzBuzz](#fizzbuzz)
+  - [Factorial](#factorial)
+  - [Extract Array Elements Having Odd Keys](#extract-array-elements-having-odd-keys)
   
 # Overview
 
@@ -156,6 +157,7 @@ The following table lists the types of patterns supported by this library and th
  [Wildcard Pattern](#wildcard-pattern) | Matches anything | `_` or `'_'`
  [Binding Pattern](#binding-pattern) | Matches on a pattern and captures the value | `'n'` or `'n' => ...`
  [List Pattern](#list-pattern) | Matches a list of elements | `when(['first', '*', 'last'])`
+ [Closure Pattern](#closure-pattern) | Matches if the function can be called with the subject and it returns true | `when(fn(float $n) => $n > 0.0)`
  [Array Pattern](#array-pattern) | Matches key-value pairs in an associative array. | `key('foo') => 'bar'` or `key::oddKey(Type::int(), fn ($n) => $n % 2 === 0) => _`
  [Regex Pattern](#regex-pattern) | Matches strings to regular expressions | `'/[A-Z]*/i'` or `when('/(?P<num>[0-9])/')`
 
@@ -273,6 +275,35 @@ $getParity('foo');  // result: 'foo is not an integer'
 
 Note that the existence of the `$n` parameter itself makes `'n'` a bind name rather than a plain string. Use `Encase\Matching\Support\val()` instead for an exact value based match.
 
+## Closure Pattern
+
+If `when()` is given a closure, the resulting pattern will match if:
+1) The closure can be called with the current subject (without a type error)
+2) The call to the closure returns a truthy value.
+
+This is useful if you require a condition which cannot be produced with any other kind of pattern. It could also be used as an alternative to a [type pattern](#type-pattern) which makes use of PHP argument static typing rather than constructing a Type object:
+
+```php
+match('strtolower', [
+    when(fn(int $n) => $n % 2) => 'odd int',
+    when(fn(int $n) => true) => 'even int',
+    when(fn(callable $c) => true) => 'is callable',
+]); // result: 'is callable'
+```
+
+Closure patterns have even more use when combined with match guarding, as any destructured or pattern binded arguments will be passed to parameters of the same name:
+
+```php
+$shape = (object)['x' => 5, 'y' => 5];
+
+match($shape, [
+    when((object)['x', 'y']) => [
+        when(fn($x, $y) => $x == $y) => 'Square',
+        _ => 'Rectangle',
+    ],
+]); // result: 'Square'
+```
+
 ## List Pattern
 
 Arguments within `when([...])` will match lists of values (ordered array values), unless `Encase\Matching\Support\key()` is used for one of them, in which case it becomes an [Array Pattern](#array-pattern).
@@ -388,16 +419,16 @@ $ipValidator('1.22.255.123')      // returns: true
 
 # Exceptions
 
-If no case matches a given expression, either due to the pattern or value not matching or a type error occurring in the case of callback patterns; or if the only case(s) that do match give a type error when calling the result closure, an exception is thrown of type `Encase\Matching\Exceptions\MatchException`. The matcher will essentially catch all type errors and convert them into match exceptions. No other thrown exception type will be caught by the matcher.
+If no case matches a given expression, either due to the pattern or value not matching or a type error occurring in the case of closure patterns; or if the only case(s) that do match give a type error when calling the result closure, an exception is thrown of type `Encase\Matching\Exceptions\MatchException`. The matcher will essentially catch all type errors and convert them into match exceptions. No other thrown exception type will be caught by the matcher.
 
 The message in the thrown `MatchException` will try to give useful information on how the cases were exhausted. For example, given simple, exact-value based cases:
 
 ```php
 match(99, [
-	1 => 1,
-	3 => 3,
-	5 => 5,
-	'foo' => 'bar'
+    1 => 1,
+    3 => 3,
+    5 => 5,
+    'foo' => 'bar'
 ]);
 ```
 
@@ -414,9 +445,9 @@ Should the cause of match exhaustion include type errors, a diagnostic of the ty
 
 ```php
 match(null, [
-	when(fn(int $v) => true) => 'int',
-	when(fn(float $v) => true) => 'float',
-	when(fn($v) => false) => 'other',
+    when(fn(int $v) => true) => 'int',
+    when(fn(float $v) => true) => 'float',
+    when(fn($v) => false) => 'other',
 ]);
 ```
 
@@ -433,8 +464,8 @@ Case result type errors do a similar thing, though the diagnostic is simplified 
 
 ```php
 match('a', [
-	0 => 1,
-	_ => fn(int $n) => $n,
+    0 => 1,
+    _ => fn(int $n) => $n,
 ]);
 ```
 
@@ -451,10 +482,10 @@ Finally, an example which shows a full diagnostic with match guarding, where the
 
 ```php
 match(0, [
-	when(Type::int()) => [
-		1 => 1,
-		2 => 2,
-	],
+    when(Type::int()) => [
+        1 => 1,
+        2 => 2,
+    ],
 ]);
 ```
 
