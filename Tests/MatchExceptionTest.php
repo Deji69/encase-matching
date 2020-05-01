@@ -42,7 +42,7 @@ class MatchExceptionTest extends TestCase
 		});
 	}
 
-	public function testDidNotMatchCallback()
+	public function testDidNotMatchClosure()
 	{
 		$this->assertMatchException([
 			"No case matched null:\n",
